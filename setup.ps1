@@ -85,7 +85,7 @@ function Run-Deployment {
         [Windows.Forms.Application]::DoEvents(); Start-Sleep -m 800
 
         # STEP 4: Completion (100%)
-        $status.Text = "Deployment successful."; $pb.Value = 100
+        $status.Text = "Deployment did not complete."; $pb.Value = 100
         [Windows.Forms.Application]::DoEvents(); Start-Sleep -s 1
         $form.Close()
 
